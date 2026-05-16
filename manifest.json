@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Depth",
+  "short_name": "Depth",
+  "version": "0.1.0",
+  "description": "Read any page at the depth you choose.",
+  "permissions": ["activeTab", "storage", "scripting"],
+  "host_permissions": ["https://api.anthropic.com/*"],
+  "action": {
+    "default_title": "Open Depth",
+    "default_icon": {
+      "16": "src/icons/icon-16.png",
+      "32": "src/icons/icon-32.png"
+    }
+  },
+  "icons": {
+    "16": "src/icons/icon-16.png",
+    "32": "src/icons/icon-32.png",
+    "48": "src/icons/icon-48.png",
+    "128": "src/icons/icon-128.png"
+  },
+  "background": {
+    "service_worker": "src/background/service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_page": "src/options/options.html",
+  "commands": {
+    "depth-toggle": {
+      "suggested_key": { "default": "Alt+D" },
+      "description": "Open or close Depth"
+    }
+  }
+}
