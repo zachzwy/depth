@@ -25,12 +25,22 @@ npm run build        # production build to ./dist
 1. `npm run build`
 2. Chrome → `chrome://extensions` → enable Developer mode
 3. "Load unpacked" → select `./dist`
-4. Set your Anthropic API key in the extension's options page
+4. Set an OpenAI-compatible API endpoint, model, and key in the extension's options page
 
 ### Toggle the panel
 
 - Keyboard: <kbd>Alt</kbd>+<kbd>D</kbd>
 - Or click the toolbar icon
+
+## Model Provider
+
+Depth currently supports custom OpenAI-compatible chat-completions endpoints. In Settings, provide:
+
+- API base URL, for example `https://openrouter.ai/api/v1`
+- API key
+- Model name
+
+This keeps the extension open to hosted gateways, local model servers, and self-hosted proxies. A hosted Depth API can be added later as the default provider for limited free trials and paid higher limits.
 
 ## Stack
 
@@ -38,4 +48,4 @@ npm run build        # production build to ./dist
 - Preact for the panel UI (~4kb runtime)
 - Shadow DOM with `all: initial` reset to isolate from host-page styles
 - Mozilla Readability for content extraction
-- `claude-sonnet-4-6` as the default model (configurable in options)
+- OpenAI-compatible chat completions API for model generation

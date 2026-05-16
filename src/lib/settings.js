@@ -1,6 +1,9 @@
 export const DEFAULTS = {
+  providerMode: 'custom',
+  apiFormat: 'openai-compatible',
+  apiBaseUrl: '',
   apiKey: '',
-  model: 'claude-sonnet-4-6',
+  model: '',
   consented: false,
 };
 
@@ -30,4 +33,22 @@ export function onSettingsChange(callback) {
   };
   chrome.storage.onChanged.addListener(handler);
   return () => chrome.storage.onChanged.removeListener(handler);
+}
+
+export function isGenerationConfigured(settings) {
+  if (settings.providerMode === 'hosted') return false;
+  return Boolean(settings.apiBaseUrl?.trim() && settings.apiKey?.trim() && settings.model?.trim());
+}
+
+export function providerFingerprint(settings) {
+  return [
+    settings.providerMode,
+    settings.apiFormat,
+    normalizeBaseUrl(settings.apiBaseUrl),
+    settings.model,
+  ].filter(Boolean).join('|');
+}
+
+export function normalizeBaseUrl(url) {
+  return (url ?? '').trim().replace(/\/+$/, '');
 }

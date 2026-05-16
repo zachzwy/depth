@@ -1,6 +1,6 @@
 import { streamMessage } from './api.js';
 import { getCached, setCached, clearCached } from './cache.js';
-import { getSettings } from '../lib/settings.js';
+import { getSettings, isGenerationConfigured, providerFingerprint } from '../lib/settings.js';
 import { contentHash } from '../lib/content-hash.js';
 import {
   SYSTEM_1_3,
@@ -86,7 +86,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     (async () => {
       try {
         const settings = await getSettings();
-        const hash = await contentHash(msg.title, msg.text, settings.model, PROMPT_VERSION);
+        const hash = await contentHash(msg.title, msg.text, providerFingerprint(settings), PROMPT_VERSION);
         const cached = await getCached(hash, 'quiz');
         sendResponse(cached ? { cached: true, data: cached } : { cached: false });
       } catch (e) {
@@ -155,9 +155,9 @@ function handleGenerate(port) {
       console.log('[Depth] handleGenerate: textChars=' + text.length, force ? '(force)' : '');
 
       const settings = await getSettings();
-      if (!settings.apiKey) return safePost(port, { type: 'error', code: 'NO_API_KEY' });
+      if (!isGenerationConfigured(settings)) return safePost(port, { type: 'error', code: 'NO_API_KEY' });
 
-      const hash = await contentHash(title, text, settings.model, PROMPT_VERSION);
+      const hash = await contentHash(title, text, providerFingerprint(settings), PROMPT_VERSION);
       if (force) {
         await Promise.all([clearCached(hash, '1-3'), clearCached(hash, 'quiz')]);
       }
@@ -170,8 +170,7 @@ function handleGenerate(port) {
       safePost(port, { type: 'started', hash });
       let lastData = null;
       const fullText = await streamMessage({
-        apiKey: settings.apiKey,
-        model: settings.model,
+        settings,
         system: SYSTEM_1_3,
         messages: buildUserMessage1_3({ title, url, text }),
         signal: controller.signal,
@@ -220,9 +219,9 @@ function handleQuiz(port) {
     if (msg?.type !== 'start') return;
     const { title, url, text, keyTerms } = msg;
     const settings = await getSettings();
-    if (!settings.apiKey) return safePost(port, { type: 'error', code: 'NO_API_KEY' });
+    if (!isGenerationConfigured(settings)) return safePost(port, { type: 'error', code: 'NO_API_KEY' });
 
-    const hash = await contentHash(title, text, settings.model, PROMPT_VERSION);
+    const hash = await contentHash(title, text, providerFingerprint(settings), PROMPT_VERSION);
     const cached = await getCached(hash, 'quiz');
     if (cached) {
       return safePost(port, { type: 'done', data: cached, fromCache: true });
@@ -232,8 +231,7 @@ function handleQuiz(port) {
     let lastData = null;
     try {
       await streamMessage({
-        apiKey: settings.apiKey,
-        model: settings.model,
+        settings,
         system: SYSTEM_QUIZ,
         messages: buildUserMessageQuiz({ title, url, text, keyTerms }),
         maxTokens: 3000,
@@ -259,16 +257,15 @@ function handleQuiz(port) {
 // ----- Level 5: Deep Dive, multi-turn, not cached -----
 function handleDive(port) {
   const { controller, getAborted } = makeAbort(port);
-  let context = null; // { title, system, model, apiKey }
+  let context = null; // { title, system, settings }
 
   port.onMessage.addListener(async (msg) => {
     if (msg?.type === 'start') {
       const settings = await getSettings();
-      if (!settings.apiKey) return safePost(port, { type: 'error', code: 'NO_API_KEY' });
+      if (!isGenerationConfigured(settings)) return safePost(port, { type: 'error', code: 'NO_API_KEY' });
       context = {
         title: msg.title,
-        model: settings.model,
-        apiKey: settings.apiKey,
+        settings,
         system: buildSystemDive({ title: msg.title, summary: msg.summary }),
       };
       if (msg.skipOpeningTurn) {
@@ -284,8 +281,7 @@ function handleDive(port) {
       const apiMessages = msg.history
         .map((t) => ({ role: t.role, content: t.content }))
         .filter((m) => m.content && m.content.trim().length > 0);
-      // Anthropic requires the conversation to start with a user message.
-      // The first real assistant turn was seeded synthetically; replay that seed.
+      // If the first real assistant turn was seeded synthetically, replay its seed.
       if (apiMessages[0]?.role === 'assistant') {
         apiMessages.unshift({
           role: 'user',
@@ -301,8 +297,7 @@ function handleDive(port) {
     let lastData = null;
     try {
       await streamMessage({
-        apiKey: context.apiKey,
-        model: context.model,
+        settings: context.settings,
         system: context.system,
         messages: apiMessages,
         maxTokens: 800,

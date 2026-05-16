@@ -9,34 +9,53 @@
     <main class="page">
       <header class="page__head">
         <h1>Depth — Settings</h1>
-        <p class="page__sub">Bring your own Anthropic API key. Settings stay on this browser.</p>
+        <p class="page__sub">Connect any OpenAI-compatible model API. Settings stay on this browser.</p>
       </header>
 
       <form id="settings-form" class="form">
         <div class="field">
-          <label for="apiKey">Anthropic API key</label>
+          <label for="apiBaseUrl">API base URL</label>
+          <input
+            id="apiBaseUrl"
+            type="url"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="https://openrouter.ai/api/v1"
+          />
+          <p class="field__hint">
+            Use an OpenAI-compatible endpoint, such as OpenRouter, LiteLLM, LM Studio, or your own proxy.
+          </p>
+        </div>
+
+        <div class="field">
+          <label for="apiKey">API key</label>
           <input
             id="apiKey"
             type="password"
             autocomplete="off"
             spellcheck="false"
-            placeholder="sk-ant-..."
+            placeholder="sk-..."
           />
           <p class="field__hint">
-            Create one at
-            <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer noopener">
-              console.anthropic.com
-            </a>.
             Keys are stored only in this browser's local extension storage.
           </p>
         </div>
 
         <div class="field">
           <label for="model">Model</label>
-          <select id="model">
-            <option value="claude-sonnet-4-6">claude-sonnet-4-6 (recommended)</option>
-            <option value="claude-opus-4-7">claude-opus-4-7 (highest quality)</option>
-            <option value="claude-haiku-4-5">claude-haiku-4-5 (cheapest)</option>
+          <input
+            id="model"
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="openai/gpt-4.1-mini"
+          />
+        </div>
+
+        <div class="field">
+          <label for="apiFormat">API format</label>
+          <select id="apiFormat">
+            <option value="openai-compatible">OpenAI-compatible chat completions</option>
           </select>
         </div>
 
@@ -47,7 +66,7 @@
       </form>
 
       <section class="info">
-        <h2>What gets sent to Anthropic</h2>
+        <h2>What gets sent to your provider</h2>
         <ul>
           <li>The article text Depth extracts from the page you're reading</li>
           <li>The page title and URL</li>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
 import { LEVELS, getLevel } from '../../lib/levels.js';
-import { getSettings, setSettings, onSettingsChange } from '../../lib/settings.js';
+import { getSettings, setSettings, onSettingsChange, isGenerationConfigured } from '../../lib/settings.js';
 import { getSession, saveSession, clearSession } from '../../lib/session.js';
 import { addToDeck } from '../../lib/deck.js';
 import { extractPage } from '../extractor.js';
@@ -84,7 +84,7 @@ export default function Panel({ pageMeta, onClose }) {
 
   const init = useCallback(async () => {
     const settings = await getSettings();
-    if (!settings.apiKey) {
+    if (!isGenerationConfigured(settings)) {
       setStatus('needs-key');
       return;
     }
@@ -128,7 +128,12 @@ export default function Panel({ pageMeta, onClose }) {
 
   useEffect(() => {
     return onSettingsChange((changes) => {
-      if (status === 'needs-key' && changes.apiKey) init();
+      if (
+        status === 'needs-key' &&
+        (changes.apiKey || changes.apiBaseUrl || changes.model || changes.apiFormat)
+      ) {
+        init();
+      }
     });
   }, [status, init]);
 

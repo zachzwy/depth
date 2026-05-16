@@ -4,10 +4,10 @@ export default function ConsentModal({ extracted, pageMeta, onAccept, onClose })
   const [showPayload, setShowPayload] = useState(false);
   return (
     <div class="state state--consent">
-      <h2 class="state__title">Send this page to Anthropic?</h2>
+      <h2 class="state__title">Send this page to your model provider?</h2>
       <p class="state__body">
-        Depth will send the extracted article text plus the page title and URL to Anthropic's API
-        using your key. Nothing else leaves your browser.
+        Depth will send the extracted article text plus the page title and URL to your configured
+        model API. Nothing else leaves your browser.
       </p>
       <button
         type="button"
