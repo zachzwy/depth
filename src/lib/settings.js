@@ -4,18 +4,20 @@ export const DEFAULTS = {
   consented: false,
 };
 
+const STORAGE_AREA = 'local';
+
 export async function getSettings() {
-  const stored = await chrome.storage.sync.get(Object.keys(DEFAULTS));
+  const stored = await chrome.storage[STORAGE_AREA].get(Object.keys(DEFAULTS));
   return { ...DEFAULTS, ...stored };
 }
 
 export async function setSettings(patch) {
-  await chrome.storage.sync.set(patch);
+  await chrome.storage[STORAGE_AREA].set(patch);
 }
 
 export function onSettingsChange(callback) {
   const handler = (changes, area) => {
-    if (area !== 'sync') return;
+    if (area !== STORAGE_AREA) return;
     const relevant = {};
     let any = false;
     for (const k of Object.keys(DEFAULTS)) {
