@@ -9,21 +9,15 @@
     <main class="page">
       <header class="page__head">
         <h1>Depth — Settings</h1>
-        <p class="page__sub">Connect any OpenAI-compatible model API. Settings stay on this browser.</p>
+        <p class="page__sub">Connect a supported model provider. Settings stay on this browser.</p>
       </header>
 
       <form id="settings-form" class="form">
         <div class="field">
-          <label for="apiBaseUrl">API base URL</label>
-          <input
-            id="apiBaseUrl"
-            type="url"
-            autocomplete="off"
-            spellcheck="false"
-            placeholder="https://openrouter.ai/api/v1"
-          />
+          <label for="providerId">Provider</label>
+          <select id="providerId"></select>
           <p class="field__hint">
-            Use an OpenAI-compatible endpoint, such as OpenRouter, LiteLLM, LM Studio, or your own proxy.
+            Packaged builds use supported providers only. Open-source users can add providers in code.
           </p>
         </div>
 
@@ -50,13 +44,6 @@
             spellcheck="false"
             placeholder="openai/gpt-4.1-mini"
           />
-        </div>
-
-        <div class="field">
-          <label for="apiFormat">API format</label>
-          <select id="apiFormat">
-            <option value="openai-compatible">OpenAI-compatible chat completions</option>
-          </select>
         </div>
 
         <div class="actions">

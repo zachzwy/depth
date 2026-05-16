@@ -1,6 +1,6 @@
 import { streamMessage } from './api.js';
 import { getCached, setCached, clearCached } from './cache.js';
-import { getSettings, isGenerationConfigured, providerFingerprint } from '../lib/settings.js';
+import { getSettings, isGenerationConfigured, providerFingerprint, hasConsentedToProvider } from '../lib/settings.js';
 import { contentHash } from '../lib/content-hash.js';
 import {
   SYSTEM_1_3,
@@ -156,6 +156,7 @@ function handleGenerate(port) {
 
       const settings = await getSettings();
       if (!isGenerationConfigured(settings)) return safePost(port, { type: 'error', code: 'NO_API_KEY' });
+      if (!hasConsentedToProvider(settings)) return safePost(port, { type: 'error', code: 'NO_PROVIDER_CONSENT' });
 
       const hash = await contentHash(title, text, providerFingerprint(settings), PROMPT_VERSION);
       if (force) {
@@ -220,6 +221,7 @@ function handleQuiz(port) {
     const { title, url, text, keyTerms } = msg;
     const settings = await getSettings();
     if (!isGenerationConfigured(settings)) return safePost(port, { type: 'error', code: 'NO_API_KEY' });
+    if (!hasConsentedToProvider(settings)) return safePost(port, { type: 'error', code: 'NO_PROVIDER_CONSENT' });
 
     const hash = await contentHash(title, text, providerFingerprint(settings), PROMPT_VERSION);
     const cached = await getCached(hash, 'quiz');
@@ -263,6 +265,7 @@ function handleDive(port) {
     if (msg?.type === 'start') {
       const settings = await getSettings();
       if (!isGenerationConfigured(settings)) return safePost(port, { type: 'error', code: 'NO_API_KEY' });
+      if (!hasConsentedToProvider(settings)) return safePost(port, { type: 'error', code: 'NO_PROVIDER_CONSENT' });
       context = {
         title: msg.title,
         settings,

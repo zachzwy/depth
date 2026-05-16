@@ -1,28 +1,42 @@
-import { getSettings, setSettings } from '../lib/settings.js';
+import { getSettings, setSettings, PROVIDERS, providerFingerprint } from '../lib/settings.js';
 
-const apiBaseUrlInput = document.getElementById('apiBaseUrl');
+const providerSelect = document.getElementById('providerId');
 const apiKeyInput = document.getElementById('apiKey');
 const modelInput = document.getElementById('model');
-const apiFormatSelect = document.getElementById('apiFormat');
 const form = document.getElementById('settings-form');
 const savedFlag = document.getElementById('saved-flag');
 
+for (const provider of Object.values(PROVIDERS)) {
+  const option = document.createElement('option');
+  option.value = provider.id;
+  option.textContent = provider.label;
+  providerSelect.append(option);
+}
+
 (async function init() {
   const settings = await getSettings();
-  apiBaseUrlInput.value = settings.apiBaseUrl;
+  providerSelect.value = settings.providerId;
   apiKeyInput.value = settings.apiKey;
   modelInput.value = settings.model;
-  apiFormatSelect.value = settings.apiFormat;
 })();
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
-  await setSettings({
+  const current = await getSettings();
+  const next = {
+    ...current,
     providerMode: 'custom',
-    apiFormat: apiFormatSelect.value,
-    apiBaseUrl: apiBaseUrlInput.value.trim(),
+    providerId: providerSelect.value,
     apiKey: apiKeyInput.value.trim(),
     model: modelInput.value.trim(),
+  };
+  const providerChanged = providerFingerprint(current) !== providerFingerprint(next);
+  await setSettings({
+    providerMode: 'custom',
+    providerId: next.providerId,
+    apiKey: apiKeyInput.value.trim(),
+    model: modelInput.value.trim(),
+    ...(providerChanged ? { consented: false, consentedProviderFingerprint: '' } : {}),
   });
   savedFlag.hidden = false;
   setTimeout(() => {

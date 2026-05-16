@@ -1,13 +1,14 @@
 import { useState } from 'preact/hooks';
 
-export default function ConsentModal({ extracted, pageMeta, onAccept, onClose }) {
+export default function ConsentModal({ extracted, pageMeta, provider, model, onAccept, onClose }) {
   const [showPayload, setShowPayload] = useState(false);
+  const providerLabel = provider?.label ?? 'your model provider';
   return (
     <div class="state state--consent">
-      <h2 class="state__title">Send this page to your model provider?</h2>
+      <h2 class="state__title">Send this page to {providerLabel}?</h2>
       <p class="state__body">
-        Depth will send the extracted article text plus the page title and URL to your configured
-        model API. Nothing else leaves your browser.
+        Depth will send the extracted article text plus the page title and URL to {providerLabel}
+        {model ? ` using ${model}` : ''}. Nothing else leaves your browser.
       </p>
       <button
         type="button"

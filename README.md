@@ -25,7 +25,7 @@ npm run build        # production build to ./dist
 1. `npm run build`
 2. Chrome → `chrome://extensions` → enable Developer mode
 3. "Load unpacked" → select `./dist`
-4. Set an OpenAI-compatible API endpoint, model, and key in the extension's options page
+4. Select a supported model provider and set your API key and model in the extension's options page
 
 ### Toggle the panel
 
@@ -34,13 +34,13 @@ npm run build        # production build to ./dist
 
 ## Model Provider
 
-Depth currently supports custom OpenAI-compatible chat-completions endpoints. In Settings, provide:
+Packaged Depth currently supports OpenRouter. In Settings, provide:
 
-- API base URL, for example `https://openrouter.ai/api/v1`
-- API key
-- Model name
+- Provider: OpenRouter
+- OpenRouter API key
+- Model name, for example `openai/gpt-4.1-mini`
 
-This keeps the extension open to hosted gateways, local model servers, and self-hosted proxies. A hosted Depth API can be added later as the default provider for limited free trials and paid higher limits.
+The code keeps providers in a small registry so open-source users can add their own endpoints and matching manifest permissions. A hosted Depth API can be added later as the default provider for limited free trials and paid higher limits.
 
 ## Stack
 

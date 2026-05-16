@@ -1,5 +1,5 @@
 import { parse as parsePartial } from 'partial-json';
-import { normalizeBaseUrl } from '../lib/settings.js';
+import { getProvider } from '../lib/settings.js';
 
 async function fetchWithRetry(url, opts, { maxAttempts = 3, baseBackoffMs = 1000 } = {}) {
   let lastErr;
@@ -36,12 +36,12 @@ export async function streamMessage({
   onPartial,
   signal,
 }) {
-  if (settings.apiFormat !== 'openai-compatible') {
-    throw new Error(`Unsupported API format: ${settings.apiFormat}`);
+  const provider = getProvider(settings);
+  if (!provider) throw new Error('Missing model provider');
+  if (provider.apiFormat !== 'openai-compatible') {
+    throw new Error(`Unsupported API format: ${provider.apiFormat}`);
   }
 
-  const apiBaseUrl = normalizeBaseUrl(settings.apiBaseUrl);
-  if (!apiBaseUrl) throw new Error('Missing API base URL');
   if (!settings.model) throw new Error('Missing model');
   if (!settings.apiKey) throw new Error('Missing API key');
 
@@ -54,13 +54,13 @@ export async function streamMessage({
   ];
 
   console.log('[Depth] POST chat/completions', {
-    apiBaseUrl,
+    provider: provider.id,
     model: settings.model,
     msgCount: chatMessages.length,
     firstUserMsgChars: userMessages[0]?.content?.length,
   });
 
-  const res = await fetchWithRetry(`${apiBaseUrl}/chat/completions`, {
+  const res = await fetchWithRetry(`${provider.apiBaseUrl}/chat/completions`, {
     method: 'POST',
     signal,
     headers: {

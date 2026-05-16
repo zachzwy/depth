@@ -1,10 +1,19 @@
+export const PROVIDERS = {
+  openrouter: {
+    id: 'openrouter',
+    label: 'OpenRouter',
+    apiFormat: 'openai-compatible',
+    apiBaseUrl: 'https://openrouter.ai/api/v1',
+  },
+};
+
 export const DEFAULTS = {
   providerMode: 'custom',
-  apiFormat: 'openai-compatible',
-  apiBaseUrl: '',
+  providerId: 'openrouter',
   apiKey: '',
   model: '',
   consented: false,
+  consentedProviderFingerprint: '',
 };
 
 const STORAGE_AREA = 'local';
@@ -37,18 +46,24 @@ export function onSettingsChange(callback) {
 
 export function isGenerationConfigured(settings) {
   if (settings.providerMode === 'hosted') return false;
-  return Boolean(settings.apiBaseUrl?.trim() && settings.apiKey?.trim() && settings.model?.trim());
+  return Boolean(getProvider(settings) && settings.apiKey?.trim() && settings.model?.trim());
 }
 
 export function providerFingerprint(settings) {
+  const provider = getProvider(settings);
   return [
     settings.providerMode,
-    settings.apiFormat,
-    normalizeBaseUrl(settings.apiBaseUrl),
+    provider?.id,
+    provider?.apiFormat,
+    provider?.apiBaseUrl,
     settings.model,
   ].filter(Boolean).join('|');
 }
 
-export function normalizeBaseUrl(url) {
-  return (url ?? '').trim().replace(/\/+$/, '');
+export function hasConsentedToProvider(settings) {
+  return settings.consentedProviderFingerprint === providerFingerprint(settings);
+}
+
+export function getProvider(settings) {
+  return PROVIDERS[settings.providerId] ?? null;
 }

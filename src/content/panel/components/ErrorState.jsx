@@ -1,5 +1,6 @@
 const FRIENDLY = {
   NO_API_KEY: 'Model provider settings are incomplete. Open settings to finish setup.',
+  NO_PROVIDER_CONSENT: 'Provider settings changed. Review consent before sending this page.',
   NO_CONTENT: "Couldn't find readable article content on this page.",
   EMPTY_RESPONSE: 'The model returned nothing. Try again?',
   API_ERROR: 'The API call failed.',

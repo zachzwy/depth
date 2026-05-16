@@ -1,6 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
 import { LEVELS, getLevel } from '../../lib/levels.js';
-import { getSettings, setSettings, onSettingsChange, isGenerationConfigured } from '../../lib/settings.js';
+import {
+  getSettings,
+  setSettings,
+  onSettingsChange,
+  isGenerationConfigured,
+  hasConsentedToProvider,
+  providerFingerprint,
+  getProvider,
+} from '../../lib/settings.js';
 import { getSession, saveSession, clearSession } from '../../lib/session.js';
 import { addToDeck } from '../../lib/deck.js';
 import { extractPage } from '../extractor.js';
@@ -25,6 +33,7 @@ export default function Panel({ pageMeta, onClose }) {
   const [level, setLevel] = useState(1);
   const [status, setStatus] = useState('init');
   const [extracted, setExtracted] = useState(null);
+  const [settings, setSettingsState] = useState(null);
   const [stats, setStats] = useState(null);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -84,6 +93,7 @@ export default function Panel({ pageMeta, onClose }) {
 
   const init = useCallback(async () => {
     const settings = await getSettings();
+    setSettingsState(settings);
     if (!isGenerationConfigured(settings)) {
       setStatus('needs-key');
       return;
@@ -108,7 +118,7 @@ export default function Panel({ pageMeta, onClose }) {
     }
     setSessionLoaded(true);
 
-    if (!settings.consented) {
+    if (!hasConsentedToProvider(settings)) {
       setStatus('needs-consent');
       return;
     }
@@ -130,7 +140,7 @@ export default function Panel({ pageMeta, onClose }) {
     return onSettingsChange((changes) => {
       if (
         status === 'needs-key' &&
-        (changes.apiKey || changes.apiBaseUrl || changes.model || changes.apiFormat)
+        (changes.apiKey || changes.providerId || changes.model)
       ) {
         init();
       }
@@ -330,7 +340,17 @@ export default function Panel({ pageMeta, onClose }) {
 
   // ----- Other handlers -----
   async function onConsent() {
-    await setSettings({ consented: true });
+    if (!settings) return;
+    const nextSettings = {
+      ...settings,
+      consented: true,
+      consentedProviderFingerprint: providerFingerprint(settings),
+    };
+    await setSettings({
+      consented: true,
+      consentedProviderFingerprint: nextSettings.consentedProviderFingerprint,
+    });
+    setSettingsState(nextSettings);
     if (extracted) startGeneration(extracted);
   }
 
@@ -376,6 +396,16 @@ export default function Panel({ pageMeta, onClose }) {
     }
     setExtracted(ext);
     setStats(computeStats(ext.text));
+    const currentSettings = await getSettings();
+    setSettingsState(currentSettings);
+    if (!isGenerationConfigured(currentSettings)) {
+      setStatus('needs-key');
+      return;
+    }
+    if (!hasConsentedToProvider(currentSettings)) {
+      setStatus('needs-consent');
+      return;
+    }
     generatedForUrl.current = pageMeta.url;
     startGeneration(ext, true);
   }
@@ -494,6 +524,8 @@ export default function Panel({ pageMeta, onClose }) {
           <ConsentModal
             extracted={extracted}
             pageMeta={pageMeta}
+            provider={settings ? getProvider(settings) : null}
+            model={settings?.model}
             onAccept={onConsent}
             onClose={onClose}
           />

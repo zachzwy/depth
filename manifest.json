@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "description": "Read any page at the depth you choose.",
   "permissions": ["activeTab", "storage", "scripting"],
-  "host_permissions": ["https://*/*", "http://localhost/*", "http://127.0.0.1/*"],
+  "host_permissions": ["https://openrouter.ai/*"],
   "action": {
     "default_title": "Open Depth",
     "default_icon": {
