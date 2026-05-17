@@ -1,5 +1,6 @@
 import { streamMessage } from './api.js';
 import { streamHosted, HostedError } from './hosted-client.js';
+import { ensureHostedSession } from './hosted-auth.js';
 import contentScriptPath from '../content/content-script.js?script';
 import { getCached, setCached, clearCached } from './cache.js';
 import { getSettings, isGenerationConfigured, providerFingerprint, hasConsentedToProvider } from '../lib/settings.js';
@@ -181,6 +182,7 @@ function handleGenerate(port) {
       safePost(port, { type: 'started', hash });
 
       if (settings.providerMode === 'hosted') {
+        await ensureHostedSession(settings);
         const { data } = await streamHosted({
           kind: 'generate',
           settings,
@@ -269,6 +271,7 @@ function handleQuiz(port) {
     safePost(port, { type: 'started' });
     try {
       if (settings.providerMode === 'hosted') {
+        await ensureHostedSession(settings);
         const { data } = await streamHosted({
           kind: 'quiz',
           settings,
@@ -420,6 +423,7 @@ function handleDive(port) {
   async function streamHostedTurn(messages) {
     safePost(port, { type: 'turn-started' });
     try {
+      await ensureHostedSession(context.settings);
       const { data } = await streamHosted({
         kind: 'dive',
         settings: context.settings,

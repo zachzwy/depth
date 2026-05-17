@@ -96,6 +96,9 @@ async function configureHosted({ consented = true } = {}) {
     ...next,
     consented,
     consentedProviderFingerprint: consented ? providerFingerprint(next) : '',
+    hostedAccessToken: 'test-token',
+    hostedAccessTokenExpiresAt: Date.now() + 60 * 60 * 1000,
+    hostedSubjectId: 'test-subject',
   });
 }
 

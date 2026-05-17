@@ -83,6 +83,12 @@ async function configureHostedSettings({ consented = true } = {}) {
     ...next,
     consented,
     consentedProviderFingerprint: consented ? fp : '',
+    // Pre-seed a non-expired anon session so ensureHostedSession short-
+    // circuits and the test's mock fetch only has to handle the function
+    // call, not /auth/v1/signup.
+    hostedAccessToken: 'test-token',
+    hostedAccessTokenExpiresAt: Date.now() + 60 * 60 * 1000,
+    hostedSubjectId: 'test-subject',
   });
 }
 

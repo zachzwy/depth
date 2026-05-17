@@ -196,6 +196,13 @@ export const PROVIDERS = {
 // once the production URL is real.
 export const DEFAULT_HOSTED_BASE_URL = 'http://localhost:54321/functions/v1';
 
+// Local-supabase publishable key (printed by `supabase status`). Required as
+// the `apikey` header on every /auth/v1 call. Per-instance value — when this
+// extension talks to a *different* local Supabase, override via the options
+// page (the production build will inject the prod key at build time).
+export const DEFAULT_HOSTED_ANON_KEY =
+  'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH';
+
 export const DEFAULTS = {
   providerMode: 'custom',
   providerId: 'openrouter',
@@ -205,6 +212,11 @@ export const DEFAULTS = {
   consented: false,
   consentedProviderFingerprint: '',
   hostedBaseUrl: DEFAULT_HOSTED_BASE_URL,
+  hostedAnonKey: DEFAULT_HOSTED_ANON_KEY,
+  // Populated lazily on first hosted call via anonymous Supabase Auth signup.
+  hostedAccessToken: '',
+  hostedAccessTokenExpiresAt: 0,
+  hostedSubjectId: '',
 };
 
 const STORAGE_AREA = 'local';
