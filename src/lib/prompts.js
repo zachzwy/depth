@@ -1,4 +1,18 @@
-export const PROMPT_VERSION = 'v1';
+import { isChineseLanguage } from './settings.js';
+
+export const PROMPT_VERSION = 'v2';
+
+function languageInstruction(language) {
+  const requested = language || 'English';
+  const isZh = isChineseLanguage(requested);
+  const langForPrompt = isZh ? 'Simplified Chinese (zh-Hans)' : requested;
+  const scriptNote = isZh
+    ? ' Use simplified Chinese characters only — never traditional (繁體). Prefer Mainland punctuation and conventions.'
+    : '';
+  return `Preferred output language: ${langForPrompt}.${scriptNote}
+Write all reader-facing generated content in the preferred output language, including definitions, headings, summaries, quiz questions, explanations, dialogue, and suggested replies.
+Keep article titles, URLs, exact evidence substrings, and [[term:N|label]] display labels faithful to the source when appropriate.`;
+}
 
 export const SYSTEM_1_3 = `You are Depth, a reading assistant that produces three nested reading levels of any article.
 
@@ -34,8 +48,10 @@ Rules:
 - Read: 2–4 sections. Each section has a short heading and 1–3 short paragraphs. Preserve the article's logical flow.
 - Avoid trivia. Favor synthesis and understanding over recall of specific names, numbers, or dates unless those are central.`;
 
-export function buildUserMessage1_3({ title, url, text }) {
-  return `Article title: ${title}
+export function buildUserMessage1_3({ title, url, text, preferredLanguage }) {
+  return `${languageInstruction(preferredLanguage)}
+
+Article title: ${title}
 Article URL: ${url}
 
 ARTICLE BEGIN
@@ -67,11 +83,13 @@ Rules:
 - Forbidden patterns: "Which of the following…", "All of the above", "None of the above", "True or false".
 - Keep prompts under 25 words, choices under 20 words each.`;
 
-export function buildUserMessageQuiz({ title, url, text, keyTerms }) {
+export function buildUserMessageQuiz({ title, url, text, keyTerms, preferredLanguage }) {
   const termsBlock = (keyTerms ?? [])
     .map((t, i) => `${i}. ${t.label}: ${t.definition}`)
     .join('\n');
-  return `Article title: ${title}
+  return `${languageInstruction(preferredLanguage)}
+
+Article title: ${title}
 Article URL: ${url}
 
 KEY TERMS (already identified):
@@ -102,7 +120,7 @@ Rules:
 - For the opening turn, pick the *most load-bearing* claim in the article and probe it.
 - suggestedReplies: exactly 3, each ≤8 words. Each leads in a distinct direction.`;
 
-export function buildSystemDive({ title, summary }) {
+export function buildSystemDive({ title, summary, preferredLanguage }) {
   const glance = summary?.glance?.sentence ?? '';
   const bullets = (summary?.summary?.bullets ?? []).map((b) => `- ${b}`).join('\n');
   const grounding = `Article: ${title}
@@ -111,5 +129,5 @@ Central claim: ${glance}
 
 Key points:
 ${bullets}`;
-  return `${SYSTEM_DIVE}\n\nGROUNDING (do not quote verbatim to the user):\n${grounding}`;
+  return `${SYSTEM_DIVE}\n\n${languageInstruction(preferredLanguage)}\n\nGROUNDING (do not quote verbatim to the user):\n${grounding}`;
 }

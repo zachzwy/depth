@@ -60,6 +60,18 @@
   gap: 12px;
   padding: 12px 14px;
   border-bottom: 1px solid var(--border);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.panel-header:active {
+  cursor: grabbing;
+}
+
+.panel-header button {
+  cursor: pointer;
+  touch-action: auto;
 }
 
 .panel-header__brand {

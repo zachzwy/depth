@@ -1,5 +1,5 @@
 import { streamMessage } from './api.js';
-import contentScriptPath from '../content/content-script.js?script&module';
+import contentScriptPath from '../content/content-script.js?script';
 import { getCached, setCached, clearCached } from './cache.js';
 import { getSettings, isGenerationConfigured, providerFingerprint, hasConsentedToProvider } from '../lib/settings.js';
 import { contentHash } from '../lib/content-hash.js';
@@ -14,9 +14,11 @@ import {
 
 async function injectContentScript(tabId) {
   try {
-    await chrome.scripting.executeScript({ target: { tabId }, files: [contentScriptPath] });
+    const file = contentScriptPath.startsWith('/') ? contentScriptPath.slice(1) : contentScriptPath;
+    await chrome.scripting.executeScript({ target: { tabId }, files: [file] });
     return true;
-  } catch {
+  } catch (e) {
+    console.warn('[Depth] could not inject content script:', e?.message);
     return false;
   }
 }
@@ -45,9 +47,9 @@ async function toggleActiveTab() {
     console.warn('[Depth] could not inject content script into tab', tab.id);
     return;
   }
-  // 3. Give the freshly injected script a moment to register its listener.
-  for (let attempt = 0; attempt < 5; attempt++) {
-    await new Promise((r) => setTimeout(r, 80));
+  // 3. Give the freshly injected loader time to import the module and register.
+  for (let attempt = 0; attempt < 20; attempt++) {
+    await new Promise((r) => setTimeout(r, 100));
     if (await trySendToggle(tab.id)) return;
   }
   console.warn('[Depth] could not reach content script after injection — try refreshing the page');
@@ -113,6 +115,7 @@ function safePost(port, msg) {
 function publicApiErrorMessage(err) {
   const message = String(err?.message ?? '');
   if (message.startsWith('Model provider')) return message;
+  if (message.startsWith('Permission for ')) return message;
   if (message.includes('Missing API key') || message.includes('Missing model')) return message;
   return 'The model provider request failed. Check your provider settings, API key, quota, and model name.';
 }
@@ -179,7 +182,7 @@ function handleGenerate(port) {
       const fullText = await streamMessage({
         settings,
         system: SYSTEM_1_3,
-        messages: buildUserMessage1_3({ title, url, text }),
+        messages: buildUserMessage1_3({ title, url, text, preferredLanguage: settings.preferredLanguage }),
         signal: controller.signal,
         onPartial: (data) => {
           if (getAborted()) return;
@@ -241,7 +244,7 @@ function handleQuiz(port) {
       await streamMessage({
         settings,
         system: SYSTEM_QUIZ,
-        messages: buildUserMessageQuiz({ title, url, text, keyTerms }),
+        messages: buildUserMessageQuiz({ title, url, text, keyTerms, preferredLanguage: settings.preferredLanguage }),
         maxTokens: 3000,
         signal: controller.signal,
         onPartial: (data) => {
@@ -276,7 +279,11 @@ function handleDive(port) {
       context = {
         title: msg.title,
         settings,
-        system: buildSystemDive({ title: msg.title, summary: msg.summary }),
+        system: buildSystemDive({
+          title: msg.title,
+          summary: msg.summary,
+          preferredLanguage: settings.preferredLanguage,
+        }),
       };
       if (msg.skipOpeningTurn) {
         // Restored session — context is set, but don't generate a fresh opening turn.

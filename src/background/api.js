@@ -43,7 +43,15 @@ export async function streamMessage({
   }
 
   if (!settings.model) throw new Error('Missing model');
-  if (!settings.apiKey) throw new Error('Missing API key');
+  if (provider.requiresApiKey !== false && !settings.apiKey) throw new Error('Missing API key');
+
+  if (provider.hostPermission) {
+    const granted = await chrome.permissions.contains({ origins: [provider.hostPermission] });
+    if (!granted) {
+      const host = new URL(provider.apiBaseUrl).host;
+      throw new Error(`Permission for ${host} not granted. Re-open Settings to re-grant access.`);
+    }
+  }
 
   const userMessages = Array.isArray(messages)
     ? messages
@@ -60,13 +68,18 @@ export async function streamMessage({
     firstUserMsgChars: userMessages[0]?.content?.length,
   });
 
+  const headers = {
+    'content-type': 'application/json',
+    ...(provider.extraHeaders ?? {}),
+  };
+  if (settings.apiKey) {
+    headers.authorization = `Bearer ${settings.apiKey}`;
+  }
+
   const res = await fetchWithRetry(`${provider.apiBaseUrl}/chat/completions`, {
     method: 'POST',
     signal,
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${settings.apiKey}`,
-    },
+    headers,
     body: JSON.stringify({
       model: settings.model,
       max_tokens: maxTokens,

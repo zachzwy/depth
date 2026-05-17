@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
-import { LEVELS, getLevel } from '../../lib/levels.js';
+import { LEVELS } from '../../lib/levels.js';
 import {
   getSettings,
   setSettings,
@@ -11,6 +11,7 @@ import {
 } from '../../lib/settings.js';
 import { getSession, saveSession, clearSession } from '../../lib/session.js';
 import { addToDeck } from '../../lib/deck.js';
+import { getUi } from '../../lib/i18n.js';
 import { extractPage } from '../extractor.js';
 import { computeStats } from '../readability-stats.js';
 import PanelHeader from './components/PanelHeader.jsx';
@@ -45,6 +46,11 @@ export default function Panel({ pageMeta, onClose }) {
   const [sessionLoaded, setSessionLoaded] = useState(false);
   const generatedForUrl = useRef(null);
 
+  // Drag-to-reposition
+  const panelRef = useRef(null);
+  const dragRef = useRef(null);
+  const [position, setPosition] = useState(null);
+
   // Quiz state
   const [quizData, setQuizData] = useState(null);
   const [quizStatus, setQuizStatus] = useState('idle');
@@ -60,7 +66,9 @@ export default function Panel({ pageMeta, onClose }) {
   const [diveInput, setDiveInput] = useState('');
   const divePortRef = useRef(null);
 
-  const current = getLevel(level);
+  const ui = getUi(settings?.preferredLanguage);
+  const localizedLevels = localizeLevels(ui);
+  const current = localizedLevels.find((l) => l.id === level) ?? localizedLevels[0];
 
   // ----- Levels 1-3 generation -----
   const startGeneration = useCallback((ext, force = false) => {
@@ -94,10 +102,9 @@ export default function Panel({ pageMeta, onClose }) {
   const init = useCallback(async () => {
     const settings = await getSettings();
     setSettingsState(settings);
-    if (!isGenerationConfigured(settings)) {
-      setStatus('needs-key');
-      return;
-    }
+
+    // Extract first so the consent modal (and any future view) has content
+    // to render even if the user has just saved settings for the first time.
     const ext = extractPage();
     if (!ext) {
       setError({ code: 'NO_CONTENT' });
@@ -106,6 +113,11 @@ export default function Panel({ pageMeta, onClose }) {
     }
     setExtracted(ext);
     setStats(computeStats(ext.text));
+
+    if (!isGenerationConfigured(settings)) {
+      setStatus('needs-key');
+      return;
+    }
 
     // Restore prior session for this URL (if within TTL).
     const session = await getSession(pageMeta.url);
@@ -141,7 +153,8 @@ export default function Panel({ pageMeta, onClose }) {
       if (
         !changes.apiKey &&
         !changes.providerId &&
-        !changes.model
+        !changes.model &&
+        !changes.preferredLanguage
       ) {
         return;
       }
@@ -432,6 +445,43 @@ export default function Panel({ pageMeta, onClose }) {
     startGeneration(ext, true);
   }
 
+  const handleHeaderPointerDown = useCallback((e) => {
+    if (e.button !== 0) return;
+    if (e.target.closest('button, input, textarea, a')) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    e.preventDefault();
+    const rect = panel.getBoundingClientRect();
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startLeft: rect.left,
+      startTop: rect.top,
+      width: rect.width,
+    };
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+  }, []);
+
+  const handleHeaderPointerMove = useCallback((e) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const margin = 4;
+    const maxLeft = Math.max(margin, window.innerWidth - drag.width - margin);
+    const maxTop = Math.max(margin, window.innerHeight - 48);
+    const newLeft = Math.max(margin, Math.min(maxLeft, drag.startLeft + (e.clientX - drag.startX)));
+    const newTop = Math.max(margin, Math.min(maxTop, drag.startTop + (e.clientY - drag.startY)));
+    setPosition({ left: newLeft, top: newTop });
+  }, []);
+
+  const handleHeaderPointerUp = useCallback((e) => {
+    dragRef.current = null;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+  }, []);
+
   function openSettings() {
     console.log('[Depth panel] open-options requested');
     try {
@@ -490,7 +540,7 @@ export default function Panel({ pageMeta, onClose }) {
     readyLevels.add(3);
   }
   if (quizStatus === 'ready') readyLevels.add(4);
-  readyLevels.add(5); // dive is always live
+  if (diveStatus === 'ready') readyLevels.add(5);
   const readyCount = readyLevels.size;
 
   // ----- Dynamic pill meta -----
@@ -498,50 +548,68 @@ export default function Panel({ pageMeta, onClose }) {
     if (level === 4 && quizData?.questions?.length) {
       const total = quizData.questions.length;
       const shown = Math.min(quizIndex + 1, total);
-      if (quizIndex >= total) return 'Done';
-      return `Question ${shown} of ${total}`;
+      if (quizIndex >= total) return ui.done;
+      return ui.quizProgress(shown, total);
     }
     return current.pillMeta;
   })();
 
   return (
-    <div class="depth-panel" role="dialog" aria-label="Depth reading panel">
+    <div
+      class="depth-panel"
+      ref={panelRef}
+      role="dialog"
+      aria-label={ui.panelLabel}
+      style={
+        position
+          ? { left: `${position.left}px`, top: `${position.top}px`, right: 'auto' }
+          : undefined
+      }
+    >
       <PanelHeader
         title={pageMeta.title}
         onClose={onClose}
         onOpenSettings={openSettings}
         onRegenerate={onRegenerate}
         canRegenerate={status === 'ready' || status === 'error'}
+        dragHandlers={{
+          onPointerDown: handleHeaderPointerDown,
+          onPointerMove: handleHeaderPointerMove,
+          onPointerUp: handleHeaderPointerUp,
+          onPointerCancel: handleHeaderPointerUp,
+        }}
+        ui={ui}
       />
 
       <div class="depth-panel__slider">
         <div class="depth-panel__slider-row">
           <div class="depth-panel__slider-leftgroup">
-            <span class="depth-panel__slider-label">READING DEPTH</span>
+            <span class="depth-panel__slider-label">{ui.readingDepth}</span>
             <span
               class={`status-badge ${readyCount === LEVELS.length ? 'is-complete' : ''}`}
               aria-live="polite"
             >
               <span class="status-badge__dot" />
-              {readyCount} / {LEVELS.length} READY
+              {readyCount} / {LEVELS.length} {ui.ready}
             </span>
           </div>
           <span class="depth-panel__slider-current">»» {current.displayName}</span>
         </div>
         <DepthSlider
-          levels={LEVELS}
+          levels={localizedLevels}
           level={level}
           onChange={setLevel}
           readyLevels={readyLevels}
+          ui={ui}
         />
       </div>
 
       <div class="depth-panel__content">
         {staleUrl && (
-          <StaleBanner onReload={onReloadStale} onDismiss={() => setStaleUrl(null)} />
+          <StaleBanner onReload={onReloadStale} onDismiss={() => setStaleUrl(null)} ui={ui} />
         )}
 
-        {status === 'needs-key' && <SetupView />}
+        {status === 'needs-key' && <SetupView ui={ui} />}
         {status === 'needs-consent' && extracted && (
           <ConsentModal
             extracted={extracted}
@@ -550,9 +618,10 @@ export default function Panel({ pageMeta, onClose }) {
             model={settings?.model}
             onAccept={onConsent}
             onClose={onClose}
+            ui={ui}
           />
         )}
-        {status === 'error' && <ErrorState error={error} onRetry={init} />}
+        {status === 'error' && <ErrorState error={error} onRetry={init} ui={ui} />}
 
         {(status === 'generating' || status === 'ready' || status === 'init') && (
           <>
@@ -587,6 +656,7 @@ export default function Panel({ pageMeta, onClose }) {
                 setDiveError(null);
                 setDiveInput('');
               }}
+              ui={ui}
             />
           </>
         )}
@@ -597,6 +667,7 @@ export default function Panel({ pageMeta, onClose }) {
         onSave={onSave}
         canSave={canSave()}
         flash={saveFlash}
+        ui={ui}
       />
     </div>
   );
@@ -623,23 +694,26 @@ function ContentSwitch({
   onDiveInput,
   onDiveSend,
   onDiveRestart,
+  ui,
 }) {
   if (level <= 3) {
     if (status === 'generating' && !data) {
-      return <LoadingSkeleton message="Reading the page…" />;
+      return <LoadingSkeleton message={ui.readingPage} />;
     }
     if (level === 1) {
-      return data?.glance ? <GlanceView data={glanceData(data)} /> : <LoadingSkeleton />;
+      return data?.glance
+        ? <GlanceView data={glanceData(data)} ui={ui} />
+        : <LoadingSkeleton message={ui.generating} />;
     }
     if (level === 2) {
       return data?.summary?.bullets?.length
         ? <SummaryView data={summaryData(data)} />
-        : <LoadingSkeleton message="Summarizing…" />;
+        : <LoadingSkeleton message={ui.summarizing} />;
     }
     if (level === 3) {
       return data?.read?.sections?.length
-        ? <ReadView data={readData(data, stats, extracted)} />
-        : <LoadingSkeleton message="Structuring…" />;
+        ? <ReadView data={readData(data, stats, extracted)} ui={ui} />
+        : <LoadingSkeleton message={ui.structuring} />;
     }
   }
 
@@ -654,6 +728,7 @@ function ContentSwitch({
         onSelect={onQuizSelect}
         onNext={onQuizNext}
         onRestart={onQuizRestart}
+        ui={ui}
       />
     );
   }
@@ -668,11 +743,22 @@ function ContentSwitch({
         onInputChange={onDiveInput}
         onSend={onDiveSend}
         onRestart={onDiveRestart}
+        ui={ui}
       />
     );
   }
 
   return null;
+}
+
+function localizeLevels(ui) {
+  return LEVELS.map((l) => ({
+    ...l,
+    name: ui.levelNames[l.id] ?? l.name,
+    displayName: ui.levelNames[l.id] ?? l.displayName,
+    pillLabel: ui.levelPillLabels[l.id] ?? l.pillLabel,
+    pillMeta: ui.levelMeta[l.id] ?? l.pillMeta,
+  }));
 }
 
 function glanceData(d) {

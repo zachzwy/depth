@@ -103,9 +103,35 @@ body { margin: 0; }
   font-weight: 600;
 }
 
+.btn--inline {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+.grant-block {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(184, 168, 230, 0.06);
+  border: 1px solid rgba(184, 168, 230, 0.18);
+  border-radius: 6px;
+}
+
+.grant-block__hint {
+  margin: 0 0 8px;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .saved-flag {
   font-size: 12px;
   color: #7fc88a;
+}
+
+.save-error {
+  font-size: 12px;
+  color: #f08a8a;
+  line-height: 1.4;
 }
 
 .info {

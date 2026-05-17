@@ -5,7 +5,18 @@
   "version": "0.1.0",
   "description": "Read any page at the depth you choose.",
   "permissions": ["activeTab", "storage", "scripting"],
-  "host_permissions": ["https://openrouter.ai/*"],
+  "optional_host_permissions": [
+    "https://openrouter.ai/api/v1/*",
+    "https://api.openai.com/v1/*",
+    "https://api.anthropic.com/v1/*",
+    "https://generativelanguage.googleapis.com/v1beta/*",
+    "https://api.deepseek.com/v1/*",
+    "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/*",
+    "https://api.groq.com/openai/v1/*",
+    "https://api.mistral.ai/v1/*",
+    "https://api.x.ai/v1/*",
+    "http://localhost:11434/v1/*"
+  ],
   "action": {
     "default_title": "Open Depth",
     "default_icon": {

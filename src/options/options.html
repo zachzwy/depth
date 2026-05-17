@@ -14,6 +14,17 @@
 
       <form id="settings-form" class="form">
         <div class="field">
+          <label for="preferredLanguage">Preferred language</label>
+          <select id="preferredLanguage">
+            <option value="English">English</option>
+            <option value="Simplified Chinese">Simplified Chinese (简体中文)</option>
+          </select>
+          <p class="field__hint">
+            Depth will use this for its interface when supported and ask the model to answer in it.
+          </p>
+        </div>
+
+        <div class="field">
           <label for="providerId">Provider</label>
           <select id="providerId"></select>
           <p class="field__hint">
@@ -30,7 +41,7 @@
             spellcheck="false"
             placeholder="sk-..."
           />
-          <p class="field__hint">
+          <p class="field__hint" id="apiKey-hint">
             Keys are stored only in this browser's local extension storage.
           </p>
         </div>
@@ -40,15 +51,27 @@
           <input
             id="model"
             type="text"
+            list="model-list"
             autocomplete="off"
             spellcheck="false"
             placeholder="openai/gpt-4.1-mini"
           />
+          <datalist id="model-list"></datalist>
+          <p class="field__hint" id="model-hint">
+            Pick from the list or type any model ID your provider supports.
+          </p>
+          <div id="grant-block" class="grant-block" hidden>
+            <p class="grant-block__hint" id="grant-hint"></p>
+            <button type="button" id="grant-btn" class="btn btn--inline">
+              Allow access
+            </button>
+          </div>
         </div>
 
         <div class="actions">
           <button type="submit" class="btn btn--primary">Save</button>
           <span id="saved-flag" class="saved-flag" hidden>Saved</span>
+          <span id="save-error" class="save-error" hidden></span>
         </div>
       </form>
 
@@ -57,6 +80,7 @@
         <ul>
           <li>The article text Depth extracts from the page you're reading</li>
           <li>The page title and URL</li>
+          <li>Your preferred output language</li>
         </ul>
         <p>
           Nothing leaves your browser until you open Depth and pick a depth level. Local browsing,

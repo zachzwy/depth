@@ -4,11 +4,13 @@ export default function PanelHeader({
   onOpenSettings,
   onRegenerate,
   canRegenerate = false,
+  dragHandlers,
+  ui,
 }) {
   const truncated = title && title.length > 36 ? title.slice(0, 36) + '…' : title;
 
   return (
-    <header class="panel-header">
+    <header class="panel-header" {...(dragHandlers ?? {})}>
       <div class="panel-header__brand">
         <svg
           class="panel-header__logo"
@@ -30,8 +32,8 @@ export default function PanelHeader({
         <button
           type="button"
           class="icon-btn"
-          aria-label="Re-generate"
-          title="Re-generate from scratch"
+          aria-label={ui.regenerate}
+          title={ui.regenerateTitle}
           onClick={onRegenerate}
           disabled={!canRegenerate}
         >
@@ -44,8 +46,8 @@ export default function PanelHeader({
         <button
           type="button"
           class="icon-btn"
-          aria-label="Settings"
-          title="Settings"
+          aria-label={ui.settings}
+          title={ui.settings}
           onClick={onOpenSettings}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -53,7 +55,7 @@ export default function PanelHeader({
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
           </svg>
         </button>
-        <button type="button" class="icon-btn" aria-label="Close" onClick={onClose}>
+        <button type="button" class="icon-btn" aria-label={ui.close} onClick={onClose}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
