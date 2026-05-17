@@ -1,0 +1,5 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`StaleBanner snapshots > English copy 1`] = `"<div class="stale-banner" role="status"><span class="stale-banner__text">Page changed - re-read this URL?</span><div class="stale-banner__actions"><button type="button" class="stale-banner__cta">Re-read</button><button type="button" class="stale-banner__dismiss" aria-label="Dismiss">✕</button></div></div>"`;
+
+exports[`StaleBanner snapshots > Simplified Chinese copy 1`] = `"<div class="stale-banner" role="status"><span class="stale-banner__text">页面已变化，要重新阅读这个 URL 吗？</span><div class="stale-banner__actions"><button type="button" class="stale-banner__cta">重新阅读</button><button type="button" class="stale-banner__dismiss" aria-label="忽略">✕</button></div></div>"`;
