@@ -18,6 +18,7 @@ describe('GlanceView snapshots', () => {
           termCount: 0,
           highlightedIndex: 0,
           terms: [],
+          sectionsUsed: 0,
         }}
         ui={en}
       />,
@@ -34,6 +35,7 @@ describe('GlanceView snapshots', () => {
           termCount: 2,
           highlightedIndex: 1,
           terms: TERMS,
+          sectionsUsed: 3,
         }}
         ui={en}
       />,
@@ -50,6 +52,7 @@ describe('GlanceView snapshots', () => {
           termCount: 2,
           highlightedIndex: 2,
           terms: TERMS,
+          sectionsUsed: 1,
         }}
         ui={en}
       />,

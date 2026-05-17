@@ -3,6 +3,13 @@ import ErrorState from '../ErrorState.jsx';
 
 const LETTERS = ['A', 'B', 'C', 'D'];
 
+function segmentClass(i, index, total, answers, questions) {
+  if (i === index && answers[i] === undefined) return 'is-current';
+  const ans = answers[i];
+  if (ans === undefined) return 'is-idle';
+  return ans === questions[i].correctIndex ? 'is-correct' : 'is-wrong';
+}
+
 export default function QuizView({
   data,
   status,
@@ -26,24 +33,44 @@ export default function QuizView({
       (acc, q, i) => acc + (answers[i] === q.correctIndex ? 1 : 0),
       0,
     );
+    const pct = Math.round((score / total) * 100);
+    const tier = pct >= 75 ? 'high' : pct >= 50 ? 'mid' : 'low';
+    const headline =
+      tier === 'high' ? ui.quizScoreStrong
+        : tier === 'mid' ? ui.quizScoreGettingThere
+          : ui.quizScoreReread;
+    const ringFill =
+      tier === 'high' ? 'var(--confidence-high)'
+        : tier === 'mid' ? 'var(--accent)'
+          : 'var(--confidence-low)';
     return (
       <div class="view view--quiz quiz--summary">
-        <div class="quiz__score">
-          <div class="quiz__score-number">
-            {score}<span class="quiz__score-total"> / {total}</span>
-          </div>
-          <div class="quiz__score-label">
-            {score === total
-              ? ui.perfect
-              : score >= total - 1
-                ? ui.strong
-                : score >= total / 2
-                  ? ui.decent
-                  : ui.rereadQuestion}
-          </div>
+        <div class="quiz__progress" aria-hidden="true">
+          {data.questions.map((_, i) => (
+            <div
+              key={i}
+              class={`quiz__progress-seg ${segmentClass(i, index, total, answers, data.questions)}`}
+            />
+          ))}
         </div>
-        <button type="button" class="state__cta" onClick={onRestart}>
-          {ui.tryAgain}
+        <div
+          class="quiz__ring"
+          style={{ '--p': pct, '--ring-fill': ringFill }}
+          role="img"
+          aria-label={`${score} of ${total}`}
+        >
+          <span class="quiz__ring-num">{pct}%</span>
+        </div>
+        <h3 class="quiz__score-headline">{headline}</h3>
+        <p class="quiz__score-body">
+          {tier === 'low' ? (
+            <>{ui.quizScoreLowPrefix} <strong>{ui.levelNames[3]}</strong>{ui.quizScoreLowSuffix}</>
+          ) : (
+            ui.quizScoreHighBody
+          )}
+        </p>
+        <button type="button" class="quiz__score-restart" onClick={onRestart}>
+          {ui.restartQuiz}
         </button>
       </div>
     );
@@ -56,15 +83,27 @@ export default function QuizView({
 
   return (
     <div class="view view--quiz">
-      <p class="quiz__prompt">{q.prompt}</p>
+      <div class="quiz__progress" aria-hidden="true">
+        {data.questions.map((_, i) => (
+          <div
+            key={i}
+            class={`quiz__progress-seg ${segmentClass(i, index, total, answers, data.questions)}`}
+          />
+        ))}
+      </div>
+
+      <p class="quiz__prompt">
+        <span class="quiz__qnum">Q{index + 1}</span>
+        {q.prompt}
+      </p>
+
       <ol class="quiz__choices">
         {q.choices.map((c, i) => {
           let klass = '';
           if (reviewing) {
             if (i === q.correctIndex) klass = 'is-correct';
             else if (i === userAnswer) klass = 'is-wrong';
-          } else if (userAnswer === i) {
-            klass = 'is-selected';
+            else klass = 'is-dim';
           }
           return (
             <li key={i}>
@@ -83,20 +122,32 @@ export default function QuizView({
       </ol>
 
       {reviewing && (
-        <div class={`quiz__feedback ${isCorrect ? 'is-correct' : 'is-wrong'}`}>
-          <p class="quiz__feedback-headline">
-            {isCorrect ? `✓ ${ui.right}` : `✗ ${ui.notQuite(LETTERS[q.correctIndex])}`}
-          </p>
-          <p class="quiz__feedback-body">{q.explanation}</p>
-          {!isCorrect && userAnswer !== q.commonWrongIndex && q.commonWrongWhy && (
-            <p class="quiz__feedback-aside">
-              <em>{ui.commonTrap}</em> {LETTERS[q.commonWrongIndex]} - {q.commonWrongWhy}
+        <>
+          <div class="quiz__explain">
+            <p class="quiz__explain-body">
+              <span class="quiz__explain-headline">
+                {isCorrect ? ui.right : ui.notQuite(LETTERS[q.correctIndex])}
+              </span>{' '}
+              {q.explanation}
             </p>
-          )}
+          </div>
           <button type="button" class="quiz__next" onClick={onNext}>
-            {index < total - 1 ? ui.nextQuestion : ui.seeScore}
+            <span>{index < total - 1 ? ui.nextQuestion : ui.seeScore}</span>
+            <svg
+              class="quiz__next-icon"
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              aria-hidden="true"
+            >
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
           </button>
-        </div>
+        </>
       )}
     </div>
   );

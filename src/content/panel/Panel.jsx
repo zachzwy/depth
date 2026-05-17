@@ -32,6 +32,33 @@ import StaleBanner from './components/StaleBanner.jsx';
 import UnsupportedCard from './components/UnsupportedCard.jsx';
 import ExtractionStats from './components/ExtractionStats.jsx';
 
+const DEFAULT_PANEL_WIDTH = 420;
+const MIN_PANEL_WIDTH = 380;
+const MAX_PANEL_WIDTH = 720;
+const PANEL_WIDTH_KEY = 'depth:panelWidth';
+
+const DEFAULT_PANEL_HEIGHT = 640;
+const MIN_PANEL_HEIGHT = 320;
+const MAX_PANEL_HEIGHT = 1200;
+const PANEL_HEIGHT_KEY = 'depth:panelHeight';
+const DEFAULT_TOP_OFFSET = 96; // matches CSS `.depth-panel { top: 96px }`
+
+const PANEL_MINIMIZED_KEY = 'depth:panelMinimized';
+const HEADER_CLICK_THRESHOLD = 4; // px of movement before drag wins over click
+
+function clampPanelWidth(w) {
+  const viewportCap = Math.max(MIN_PANEL_WIDTH, window.innerWidth - 8);
+  const cap = Math.min(MAX_PANEL_WIDTH, viewportCap);
+  return Math.max(MIN_PANEL_WIDTH, Math.min(cap, w));
+}
+
+function clampPanelHeight(h, topPx) {
+  const top = typeof topPx === 'number' ? topPx : DEFAULT_TOP_OFFSET;
+  const viewportCap = Math.max(MIN_PANEL_HEIGHT, window.innerHeight - top - 8);
+  const cap = Math.min(MAX_PANEL_HEIGHT, viewportCap);
+  return Math.max(MIN_PANEL_HEIGHT, Math.min(cap, h));
+}
+
 export default function Panel({ pageMeta, onClose }) {
   // Levels 1-3 state
   const [level, setLevel] = useState(1);
@@ -56,6 +83,19 @@ export default function Panel({ pageMeta, onClose }) {
   const panelRef = useRef(null);
   const dragRef = useRef(null);
   const [position, setPosition] = useState(null);
+
+  // Drag-to-resize (left-edge handle)
+  const resizeRef = useRef(null);
+  const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
+  const [resizing, setResizing] = useState(false);
+
+  // Drag-to-resize (bottom-edge handle)
+  const resizeYRef = useRef(null);
+  const [panelHeight, setPanelHeight] = useState(DEFAULT_PANEL_HEIGHT);
+  const [resizingY, setResizingY] = useState(false);
+
+  // Click-header-to-minimize
+  const [minimized, setMinimized] = useState(false);
 
   // Quiz state
   const [quizData, setQuizData] = useState(null);
@@ -486,6 +526,7 @@ export default function Panel({ pageMeta, onClose }) {
       startLeft: rect.left,
       startTop: rect.top,
       width: rect.width,
+      moved: false,
     };
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -495,19 +536,149 @@ export default function Panel({ pageMeta, onClose }) {
   const handleHeaderPointerMove = useCallback((e) => {
     const drag = dragRef.current;
     if (!drag) return;
+    const dx = e.clientX - drag.startX;
+    const dy = e.clientY - drag.startY;
+    if (!drag.moved && Math.abs(dx) < HEADER_CLICK_THRESHOLD && Math.abs(dy) < HEADER_CLICK_THRESHOLD) {
+      return;
+    }
+    drag.moved = true;
     const margin = 4;
     const maxLeft = Math.max(margin, window.innerWidth - drag.width - margin);
     const maxTop = Math.max(margin, window.innerHeight - 48);
-    const newLeft = Math.max(margin, Math.min(maxLeft, drag.startLeft + (e.clientX - drag.startX)));
-    const newTop = Math.max(margin, Math.min(maxTop, drag.startTop + (e.clientY - drag.startY)));
+    const newLeft = Math.max(margin, Math.min(maxLeft, drag.startLeft + dx));
+    const newTop = Math.max(margin, Math.min(maxTop, drag.startTop + dy));
     setPosition({ left: newLeft, top: newTop });
   }, []);
 
   const handleHeaderPointerUp = useCallback((e) => {
+    const drag = dragRef.current;
     dragRef.current = null;
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {}
+    if (drag && !drag.moved && e.type === 'pointerup') {
+      setMinimized((prev) => {
+        const next = !prev;
+        chrome.storage.local.set({ [PANEL_MINIMIZED_KEY]: next });
+        return next;
+      });
+    }
+  }, []);
+
+  // Restore persisted width + height + minimized on first mount.
+  useEffect(() => {
+    let cancelled = false;
+    chrome.storage.local
+      .get([PANEL_WIDTH_KEY, PANEL_HEIGHT_KEY, PANEL_MINIMIZED_KEY])
+      .then((r) => {
+        if (cancelled) return;
+        const w = r?.[PANEL_WIDTH_KEY];
+        if (typeof w === 'number' && Number.isFinite(w)) setPanelWidth(clampPanelWidth(w));
+        const h = r?.[PANEL_HEIGHT_KEY];
+        if (typeof h === 'number' && Number.isFinite(h)) setPanelHeight(clampPanelHeight(h));
+        if (r?.[PANEL_MINIMIZED_KEY] === true) setMinimized(true);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleResizePointerDown = useCallback((e) => {
+    if (e.button !== 0) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = panel.getBoundingClientRect();
+    resizeRef.current = {
+      startX: e.clientX,
+      startWidth: rect.width,
+      startLeft: rect.left,
+      rightEdge: rect.right,
+      isPositioned: position !== null,
+    };
+    setResizing(true);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+  }, [position]);
+
+  const handleResizePointerMove = useCallback((e) => {
+    const r = resizeRef.current;
+    if (!r) return;
+    const delta = e.clientX - r.startX;
+    const newWidth = clampPanelWidth(r.startWidth - delta);
+    setPanelWidth(newWidth);
+    if (r.isPositioned) {
+      setPosition((prev) => prev ? { ...prev, left: r.rightEdge - newWidth } : prev);
+    }
+  }, []);
+
+  const handleResizePointerUp = useCallback((e) => {
+    const wasResizing = resizeRef.current !== null;
+    resizeRef.current = null;
+    setResizing(false);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    if (wasResizing) {
+      // Read the current width from the DOM so we persist exactly what's rendered.
+      const rect = panelRef.current?.getBoundingClientRect();
+      if (rect) chrome.storage.local.set({ [PANEL_WIDTH_KEY]: rect.width });
+    }
+  }, []);
+
+  const handleResizeDoubleClick = useCallback(() => {
+    const panel = panelRef.current;
+    const rightEdge = panel?.getBoundingClientRect().right;
+    setPanelWidth(DEFAULT_PANEL_WIDTH);
+    chrome.storage.local.set({ [PANEL_WIDTH_KEY]: DEFAULT_PANEL_WIDTH });
+    if (position !== null && typeof rightEdge === 'number') {
+      setPosition({ ...position, left: rightEdge - DEFAULT_PANEL_WIDTH });
+    }
+  }, [position]);
+
+  const handleResizeYPointerDown = useCallback((e) => {
+    if (e.button !== 0) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = panel.getBoundingClientRect();
+    resizeYRef.current = {
+      startY: e.clientY,
+      startHeight: rect.height,
+      top: rect.top,
+    };
+    setResizingY(true);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+  }, []);
+
+  const handleResizeYPointerMove = useCallback((e) => {
+    const r = resizeYRef.current;
+    if (!r) return;
+    const newHeight = clampPanelHeight(r.startHeight + (e.clientY - r.startY), r.top);
+    setPanelHeight(newHeight);
+  }, []);
+
+  const handleResizeYPointerUp = useCallback((e) => {
+    const wasResizing = resizeYRef.current !== null;
+    resizeYRef.current = null;
+    setResizingY(false);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    if (wasResizing) {
+      const rect = panelRef.current?.getBoundingClientRect();
+      if (rect) chrome.storage.local.set({ [PANEL_HEIGHT_KEY]: rect.height });
+    }
+  }, []);
+
+  const handleResizeYDoubleClick = useCallback(() => {
+    const rect = panelRef.current?.getBoundingClientRect();
+    const next = clampPanelHeight(DEFAULT_PANEL_HEIGHT, rect?.top);
+    setPanelHeight(next);
+    chrome.storage.local.set({ [PANEL_HEIGHT_KEY]: next });
   }, []);
 
   function openSettings() {
@@ -586,7 +757,13 @@ export default function Panel({ pageMeta, onClose }) {
     if (level === 4 && quizData?.questions?.length) {
       const total = quizData.questions.length;
       const shown = Math.min(quizIndex + 1, total);
-      if (quizIndex >= total) return ui.done;
+      if (quizIndex >= total) {
+        const score = quizData.questions.reduce(
+          (acc, q, i) => acc + (quizAnswers[i] === q.correctIndex ? 1 : 0),
+          0,
+        );
+        return ui.quizComplete(score, total);
+      }
       return ui.quizProgress(shown, total);
     }
     return current.pillMeta;
@@ -594,16 +771,42 @@ export default function Panel({ pageMeta, onClose }) {
 
   return (
     <div
-      class="depth-panel"
+      class={`depth-panel${minimized ? ' is-minimized' : ''}`}
       ref={panelRef}
       role="dialog"
       aria-label={ui.panelLabel}
-      style={
-        position
+      style={{
+        width: `${panelWidth}px`,
+        ...(minimized ? null : { height: `${panelHeight}px` }),
+        ...(position
           ? { left: `${position.left}px`, top: `${position.top}px`, right: 'auto' }
-          : undefined
-      }
+          : null),
+      }}
     >
+      <div
+        class={`depth-panel__resize-handle${resizing ? ' is-dragging' : ''}`}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={ui.resizePanel ?? 'Resize panel width'}
+        title={ui.resizePanel ?? 'Drag to resize • Double-click to reset'}
+        onPointerDown={handleResizePointerDown}
+        onPointerMove={handleResizePointerMove}
+        onPointerUp={handleResizePointerUp}
+        onPointerCancel={handleResizePointerUp}
+        onDblClick={handleResizeDoubleClick}
+      />
+      <div
+        class={`depth-panel__resize-handle-y${resizingY ? ' is-dragging' : ''}`}
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label={ui.resizePanelHeight ?? 'Resize panel height'}
+        title="Drag to resize • Double-click to reset"
+        onPointerDown={handleResizeYPointerDown}
+        onPointerMove={handleResizeYPointerMove}
+        onPointerUp={handleResizeYPointerUp}
+        onPointerCancel={handleResizeYPointerUp}
+        onDblClick={handleResizeYDoubleClick}
+      />
       <PanelHeader
         title={pageMeta.title}
         onClose={onClose}
@@ -673,37 +876,42 @@ export default function Panel({ pageMeta, onClose }) {
           <>
             {extracted && <ExtractionStats extracted={extracted} ui={ui} />}
             <LevelTabPill level={current} metaOverride={pillMeta} />
-            <ContentSwitch
+            <DepthStage
               level={level}
-              data={data}
-              stats={stats}
-              extracted={extracted}
-              status={status}
-              quizData={quizData}
-              quizStatus={quizStatus}
-              quizError={quizError}
-              quizIndex={quizIndex}
-              quizAnswers={quizAnswers}
-              onQuizSelect={(i) => setQuizAnswers({ ...quizAnswers, [quizIndex]: i })}
-              onQuizNext={() => setQuizIndex(quizIndex + 1)}
-              onQuizRestart={() => {
-                setQuizIndex(0);
-                setQuizAnswers({});
-                if (quizStatus !== 'ready') startQuiz();
-              }}
-              diveTurns={diveTurns}
-              diveStatus={diveStatus}
-              diveError={diveError}
-              diveInput={diveInput}
-              onDiveInput={setDiveInput}
-              onDiveSend={sendDiveMessage}
-              onDiveRestart={() => {
-                setDiveTurns([]);
-                setDiveStatus('idle');
-                setDiveError(null);
-                setDiveInput('');
-              }}
-              ui={ui}
+              renderLevel={(lv) => (
+                <ContentSwitch
+                  level={lv}
+                  data={data}
+                  stats={stats}
+                  extracted={extracted}
+                  status={status}
+                  quizData={quizData}
+                  quizStatus={quizStatus}
+                  quizError={quizError}
+                  quizIndex={quizIndex}
+                  quizAnswers={quizAnswers}
+                  onQuizSelect={(i) => setQuizAnswers({ ...quizAnswers, [quizIndex]: i })}
+                  onQuizNext={() => setQuizIndex(quizIndex + 1)}
+                  onQuizRestart={() => {
+                    setQuizIndex(0);
+                    setQuizAnswers({});
+                    if (quizStatus !== 'ready') startQuiz();
+                  }}
+                  diveTurns={diveTurns}
+                  diveStatus={diveStatus}
+                  diveError={diveError}
+                  diveInput={diveInput}
+                  onDiveInput={setDiveInput}
+                  onDiveSend={sendDiveMessage}
+                  onDiveRestart={() => {
+                    setDiveTurns([]);
+                    setDiveStatus('idle');
+                    setDiveError(null);
+                    setDiveInput('');
+                  }}
+                  ui={ui}
+                />
+              )}
             />
           </>
         )}
@@ -722,6 +930,34 @@ export default function Panel({ pageMeta, onClose }) {
         flash={saveFlash}
         ui={ui}
       /> */}
+    </div>
+  );
+}
+
+const DEPTH_EXIT_DURATION_MS = 400; // enter delay (80ms) + animation (320ms)
+
+function DepthStage({ level, renderLevel }) {
+  const [stable, setStable] = useState(level);
+  const [outgoing, setOutgoing] = useState(null);
+
+  useEffect(() => {
+    if (level === stable) return undefined;
+    setOutgoing(stable);
+    setStable(level);
+    const t = setTimeout(() => setOutgoing(null), DEPTH_EXIT_DURATION_MS);
+    return () => clearTimeout(t);
+  }, [level, stable]);
+
+  return (
+    <div class="depth-stage">
+      {outgoing !== null && (
+        <div class="depth-stage__pane is-exiting" key={`out-${outgoing}`} aria-hidden="true">
+          {renderLevel(outgoing)}
+        </div>
+      )}
+      <div class="depth-stage__pane is-entering" key={`in-${stable}`}>
+        {renderLevel(stable)}
+      </div>
     </div>
   );
 }
@@ -821,6 +1057,7 @@ function glanceData(d) {
     termCount: d.keyTerms?.length ?? 0,
     highlightedIndex: countTermRefs(d.glance?.sentence),
     terms: d.keyTerms ?? [],
+    sectionsUsed: d.read?.sections?.length ?? 0,
   };
 }
 
