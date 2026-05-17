@@ -5,6 +5,7 @@ import {
   providerFingerprint,
   hasProviderPermission,
   requestProviderPermission,
+  DEFAULT_HOSTED_BASE_URL,
 } from '../lib/settings.js';
 import { LANGUAGE_OPTIONS, getLanguage } from '../lib/i18n/index.js';
 
@@ -22,6 +23,34 @@ const form = document.getElementById('settings-form');
 const savedFlag = document.getElementById('saved-flag');
 const dirtyFlag = document.getElementById('dirty-flag');
 const saveError = document.getElementById('save-error');
+
+const modeRadios = [...document.querySelectorAll('input[name="providerMode"]')];
+const hostedSection = document.getElementById('hosted-section');
+const customSection = document.getElementById('custom-section');
+const hostedGrantBlock = document.getElementById('hosted-grant-block');
+const hostedGrantBtn = document.getElementById('hosted-grant-btn');
+const hostedGrantHint = document.getElementById('hosted-grant-hint');
+
+function currentMode() {
+  const checked = modeRadios.find((r) => r.checked);
+  return checked?.value ?? 'custom';
+}
+
+function hostedOriginPattern() {
+  try {
+    return new URL(DEFAULT_HOSTED_BASE_URL).origin + '/*';
+  } catch {
+    return '';
+  }
+}
+
+function hostedHost() {
+  try {
+    return new URL(DEFAULT_HOSTED_BASE_URL).host;
+  } catch {
+    return DEFAULT_HOSTED_BASE_URL;
+  }
+}
 
 for (const provider of Object.values(PROVIDERS)) {
   const option = document.createElement('option');
@@ -161,11 +190,33 @@ let savedSnapshot = null;
 
 function currentSnapshot() {
   return [
+    currentMode(),
     providerSelect.value,
     apiKeyInput.value,
     modelInput.value,
     preferredLanguageInput.value,
   ].join('|');
+}
+
+async function refreshHostedUI() {
+  const pattern = hostedOriginPattern();
+  const granted = pattern
+    ? await chrome.permissions.contains({ origins: [pattern] })
+    : false;
+  if (granted) {
+    hostedGrantBlock.hidden = true;
+  } else {
+    hostedGrantHint.textContent = `Chrome will ask to grant Depth access to ${hostedHost()}. This lets Depth send your page text to Depth Hosted for generation.`;
+    hostedGrantBtn.textContent = `Allow access to Depth Hosted`;
+    hostedGrantBlock.hidden = false;
+  }
+}
+
+function applyModeVisibility() {
+  const mode = currentMode();
+  hostedSection.hidden = mode !== 'hosted';
+  customSection.hidden = mode !== 'custom';
+  if (mode === 'hosted') refreshHostedUI();
 }
 
 function captureSavedSnapshot() {
@@ -186,6 +237,28 @@ for (const el of [providerSelect, apiKeyInput, modelInput, preferredLanguageInpu
   el.addEventListener('input', refreshDirtyFlag);
   el.addEventListener('change', refreshDirtyFlag);
 }
+
+for (const radio of modeRadios) {
+  radio.addEventListener('change', () => {
+    applyModeVisibility();
+    refreshDirtyFlag();
+  });
+}
+
+hostedGrantBtn.addEventListener('click', async () => {
+  const pattern = hostedOriginPattern();
+  if (!pattern) return;
+  try {
+    const granted = await chrome.permissions.request({ origins: [pattern] });
+    if (granted) {
+      hostedGrantBlock.hidden = true;
+    } else {
+      hostedGrantHint.textContent = `Permission denied. Depth Hosted needs access to ${hostedHost()} to generate.`;
+    }
+  } catch (e) {
+    hostedGrantHint.textContent = `Could not request permission: ${e.message}`;
+  }
+});
 
 providerSelect.addEventListener('change', () => {
   refreshModelUI();
@@ -216,10 +289,13 @@ grantBtn.addEventListener('click', async () => {
 
 (async function init() {
   const settings = await getSettings();
+  const mode = settings.providerMode === 'hosted' ? 'hosted' : 'custom';
+  for (const r of modeRadios) r.checked = r.value === mode;
   providerSelect.value = settings.providerId;
   apiKeyInput.value = settings.apiKey;
   modelInput.value = settings.model;
   preferredLanguageInput.value = toSupportedLanguage(settings.preferredLanguage);
+  applyModeVisibility();
   captureSavedSnapshot();
   await refreshModelUI();
 })();
@@ -228,6 +304,52 @@ form.addEventListener('submit', async (e) => {
   e.preventDefault();
   hideSaveError();
 
+  const mode = currentMode();
+  const language = toSupportedLanguage(preferredLanguageInput.value);
+  const current = await getSettings();
+
+  if (mode === 'hosted') {
+    const pattern = hostedOriginPattern();
+    if (!pattern) {
+      showSaveError('Invalid hosted base URL.');
+      return;
+    }
+    let granted = await chrome.permissions.contains({ origins: [pattern] });
+    if (!granted) {
+      try {
+        granted = await chrome.permissions.request({ origins: [pattern] });
+      } catch (err) {
+        showSaveError(`Could not request host permission: ${err.message}`);
+        return;
+      }
+      if (!granted) {
+        showSaveError(`Permission for ${hostedHost()} was not granted. Allow access to save.`);
+        return;
+      }
+    }
+
+    const next = {
+      ...current,
+      providerMode: 'hosted',
+      hostedBaseUrl: DEFAULT_HOSTED_BASE_URL,
+      preferredLanguage: language,
+    };
+    const consentScopeChanged = providerFingerprint(current) !== providerFingerprint(next);
+    await setSettings({
+      providerMode: 'hosted',
+      hostedBaseUrl: DEFAULT_HOSTED_BASE_URL,
+      preferredLanguage: language,
+      ...(consentScopeChanged ? { consented: false, consentedProviderFingerprint: '' } : {}),
+    });
+    captureSavedSnapshot();
+    savedFlag.hidden = false;
+    setTimeout(() => {
+      savedFlag.hidden = true;
+    }, 1800);
+    return;
+  }
+
+  // Custom (BYOK) mode
   const provider = currentProvider();
   if (!provider) {
     showSaveError('No provider selected.');
@@ -251,14 +373,13 @@ form.addEventListener('submit', async (e) => {
     }
   }
 
-  const current = await getSettings();
   const next = {
     ...current,
     providerMode: 'custom',
     providerId: provider.id,
     apiKey: apiKeyInput.value.trim(),
     model: modelInput.value.trim(),
-    preferredLanguage: toSupportedLanguage(preferredLanguageInput.value),
+    preferredLanguage: language,
   };
   const consentScopeChanged = providerFingerprint(current) !== providerFingerprint(next);
   await setSettings({

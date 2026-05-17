@@ -13,6 +13,24 @@
       </header>
 
       <form id="settings-form" class="form">
+        <fieldset class="mode-toggle" id="mode-toggle">
+          <legend>How should Depth generate?</legend>
+          <label class="mode-toggle__option">
+            <input type="radio" name="providerMode" value="hosted" />
+            <span class="mode-toggle__body">
+              <strong>Use Depth Hosted</strong>
+              <span class="mode-toggle__hint">Default. No setup. Free daily quota.</span>
+            </span>
+          </label>
+          <label class="mode-toggle__option">
+            <input type="radio" name="providerMode" value="custom" />
+            <span class="mode-toggle__body">
+              <strong>Bring your own API key</strong>
+              <span class="mode-toggle__hint">Your provider, your bill, no Depth quota.</span>
+            </span>
+          </label>
+        </fieldset>
+
         <div class="field">
           <label for="preferredLanguage">Preferred language</label>
           <select id="preferredLanguage"></select>
@@ -21,49 +39,65 @@
           </p>
         </div>
 
-        <div class="field">
-          <label for="providerId">Provider</label>
-          <select id="providerId"></select>
-          <p class="field__hint">
-            Packaged builds use supported providers only. Open-source users can add providers in code.
+        <section id="hosted-section" hidden>
+          <p class="field__hint" id="hosted-description">
+            Depth Hosted forwards the page's article text to Depth, which sends it to our
+            model provider for one-shot generation. Depth does not store the article text
+            by default.
           </p>
-        </div>
-
-        <div class="field">
-          <label for="apiKey">API key</label>
-          <input
-            id="apiKey"
-            type="password"
-            autocomplete="off"
-            spellcheck="false"
-            placeholder="sk-..."
-          />
-          <p class="field__hint" id="apiKey-hint">
-            Keys are stored only in this browser's local extension storage.
-          </p>
-        </div>
-
-        <div class="field">
-          <label for="model">Model</label>
-          <input
-            id="model"
-            type="text"
-            list="model-list"
-            autocomplete="off"
-            spellcheck="false"
-            placeholder="openai/gpt-4.1-mini"
-          />
-          <datalist id="model-list"></datalist>
-          <p class="field__hint" id="model-hint">
-            Pick from the list or type any model ID your provider supports.
-          </p>
-          <div id="grant-block" class="grant-block" hidden>
-            <p class="grant-block__hint" id="grant-hint"></p>
-            <button type="button" id="grant-btn" class="btn btn--inline">
+          <div id="hosted-grant-block" class="grant-block" hidden>
+            <p class="grant-block__hint" id="hosted-grant-hint"></p>
+            <button type="button" id="hosted-grant-btn" class="btn btn--inline">
               Allow access
             </button>
           </div>
-        </div>
+        </section>
+
+        <section id="custom-section">
+          <div class="field">
+            <label for="providerId">Provider</label>
+            <select id="providerId"></select>
+            <p class="field__hint">
+              Packaged builds use supported providers only. Open-source users can add providers in code.
+            </p>
+          </div>
+
+          <div class="field">
+            <label for="apiKey">API key</label>
+            <input
+              id="apiKey"
+              type="password"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="sk-..."
+            />
+            <p class="field__hint" id="apiKey-hint">
+              Keys are stored only in this browser's local extension storage.
+            </p>
+          </div>
+
+          <div class="field">
+            <label for="model">Model</label>
+            <input
+              id="model"
+              type="text"
+              list="model-list"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="openai/gpt-4.1-mini"
+            />
+            <datalist id="model-list"></datalist>
+            <p class="field__hint" id="model-hint">
+              Pick from the list or type any model ID your provider supports.
+            </p>
+            <div id="grant-block" class="grant-block" hidden>
+              <p class="grant-block__hint" id="grant-hint"></p>
+              <button type="button" id="grant-btn" class="btn btn--inline">
+                Allow access
+              </button>
+            </div>
+          </div>
+        </section>
 
         <div class="actions">
           <button type="submit" class="btn btn--primary">Save</button>

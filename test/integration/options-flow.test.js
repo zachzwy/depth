@@ -152,3 +152,101 @@ describe('options page save', () => {
     expect(document.getElementById('saved-flag').hidden).toBe(false);
   });
 });
+
+describe('options page hosted mode', () => {
+  function selectHosted() {
+    const radio = document.querySelector('input[name="providerMode"][value="hosted"]');
+    radio.checked = true;
+    radio.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  it('defaults to custom mode when nothing is stored', async () => {
+    await importOptions();
+    const checked = document.querySelector('input[name="providerMode"]:checked');
+    expect(checked.value).toBe('custom');
+    expect(document.getElementById('hosted-section').hidden).toBe(true);
+    expect(document.getElementById('custom-section').hidden).toBe(false);
+  });
+
+  it('toggling to hosted shows hosted section, hides custom section', async () => {
+    await importOptions();
+    selectHosted();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(document.getElementById('hosted-section').hidden).toBe(false);
+    expect(document.getElementById('custom-section').hidden).toBe(true);
+    expect(document.getElementById('dirty-flag').hidden).toBe(false);
+  });
+
+  it('shows the hosted grant block until permission is granted', async () => {
+    await importOptions();
+    selectHosted();
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    const grantBlock = document.getElementById('hosted-grant-block');
+    expect(grantBlock.hidden).toBe(false);
+    expect(document.getElementById('hosted-grant-hint').textContent).toContain('localhost');
+
+    document.getElementById('hosted-grant-btn').click();
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(grantBlock.hidden).toBe(true);
+  });
+
+  it('save persists providerMode=hosted with hostedBaseUrl and clears stale consent', async () => {
+    // Pre-seed BYOK consent so we can verify it's reset when scope changes.
+    await chrome.storage.local.set({
+      providerMode: 'custom',
+      providerId: 'openrouter',
+      apiKey: 'sk-old',
+      model: 'm',
+      preferredLanguage: 'English',
+      consented: true,
+      consentedProviderFingerprint: 'stale|fingerprint',
+    });
+
+    await importOptions();
+    selectHosted();
+    await new Promise((r) => setTimeout(r, 0));
+
+    document.getElementById('settings-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    const stored = await chrome.storage.local.get(null);
+    expect(stored.providerMode).toBe('hosted');
+    expect(stored.hostedBaseUrl).toBe('http://localhost:54321/functions/v1');
+    expect(stored.consented).toBe(false);
+    expect(stored.consentedProviderFingerprint).toBe('');
+    expect(document.getElementById('saved-flag').hidden).toBe(false);
+  });
+
+  it('refuses to save hosted mode without host permission', async () => {
+    chrome.permissions.request.mockImplementationOnce(() => Promise.resolve(false));
+    await importOptions();
+    selectHosted();
+    await new Promise((r) => setTimeout(r, 0));
+
+    document.getElementById('settings-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    const saveError = document.getElementById('save-error');
+    expect(saveError.hidden).toBe(false);
+    expect(saveError.textContent).toMatch(/permission .* not granted/i);
+    const stored = await chrome.storage.local.get(null);
+    expect(stored.providerMode).toBeUndefined();
+  });
+
+  it('restores hosted radio on reload when providerMode is stored as hosted', async () => {
+    await chrome.storage.local.set({
+      providerMode: 'hosted',
+      hostedBaseUrl: 'http://localhost:54321/functions/v1',
+      preferredLanguage: 'English',
+    });
+    await importOptions();
+    const checked = document.querySelector('input[name="providerMode"]:checked');
+    expect(checked.value).toBe('hosted');
+    expect(document.getElementById('hosted-section').hidden).toBe(false);
+    expect(document.getElementById('custom-section').hidden).toBe(true);
+  });
+});
