@@ -11,7 +11,7 @@ import {
 } from '../../lib/settings.js';
 import { getSession, saveSession, clearSession } from '../../lib/session.js';
 import { addToDeck } from '../../lib/deck.js';
-import { getUi } from '../../lib/i18n.js';
+import { getUi } from '../../lib/i18n/index.js';
 import { extractPage } from '../extractor.js';
 import { computeStats } from '../readability-stats.js';
 import PanelHeader from './components/PanelHeader.jsx';

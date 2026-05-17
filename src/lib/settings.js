@@ -266,16 +266,6 @@ export function normalizeLanguage(language) {
   return (language ?? '').trim() || 'English';
 }
 
-export function isChineseLanguage(language) {
-  const lower = (language ?? '').toLowerCase();
-  return (
-    lower.includes('chinese') ||
-    lower.includes('中文') ||
-    lower.includes('汉语') ||
-    lower.startsWith('zh')
-  );
-}
-
 export async function hasProviderPermission(provider) {
   if (!provider?.hostPermission) return false;
   return chrome.permissions.contains({ origins: [provider.hostPermission] });

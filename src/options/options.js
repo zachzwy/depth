@@ -6,6 +6,7 @@ import {
   hasProviderPermission,
   requestProviderPermission,
 } from '../lib/settings.js';
+import { LANGUAGE_OPTIONS, getLanguage } from '../lib/i18n/index.js';
 
 const providerSelect = document.getElementById('providerId');
 const apiKeyInput = document.getElementById('apiKey');
@@ -19,6 +20,7 @@ const grantHint = document.getElementById('grant-hint');
 const preferredLanguageInput = document.getElementById('preferredLanguage');
 const form = document.getElementById('settings-form');
 const savedFlag = document.getElementById('saved-flag');
+const dirtyFlag = document.getElementById('dirty-flag');
 const saveError = document.getElementById('save-error');
 
 for (const provider of Object.values(PROVIDERS)) {
@@ -26,6 +28,13 @@ for (const provider of Object.values(PROVIDERS)) {
   option.value = provider.id;
   option.textContent = provider.label;
   providerSelect.append(option);
+}
+
+for (const opt of LANGUAGE_OPTIONS) {
+  const option = document.createElement('option');
+  option.value = opt.value;
+  option.textContent = opt.display;
+  preferredLanguageInput.append(option);
 }
 
 function currentProvider() {
@@ -57,16 +66,7 @@ function hideGrantBlock() {
 }
 
 function toSupportedLanguage(language) {
-  const normalized = (language ?? '').trim().toLowerCase();
-  if (
-    normalized.includes('chinese') ||
-    normalized.includes('中文') ||
-    normalized.includes('汉语') ||
-    normalized.startsWith('zh')
-  ) {
-    return 'Simplified Chinese';
-  }
-  return 'English';
+  return getLanguage(language).label;
 }
 
 let modelsFetchController = null;
@@ -157,6 +157,36 @@ function hideSaveError() {
   saveError.hidden = true;
 }
 
+let savedSnapshot = null;
+
+function currentSnapshot() {
+  return [
+    providerSelect.value,
+    apiKeyInput.value,
+    modelInput.value,
+    preferredLanguageInput.value,
+  ].join('|');
+}
+
+function captureSavedSnapshot() {
+  savedSnapshot = currentSnapshot();
+  dirtyFlag.hidden = true;
+}
+
+function refreshDirtyFlag() {
+  if (savedSnapshot == null) return;
+  const dirty = currentSnapshot() !== savedSnapshot;
+  dirtyFlag.hidden = !dirty;
+  if (dirty) {
+    savedFlag.hidden = true;
+  }
+}
+
+for (const el of [providerSelect, apiKeyInput, modelInput, preferredLanguageInput]) {
+  el.addEventListener('input', refreshDirtyFlag);
+  el.addEventListener('change', refreshDirtyFlag);
+}
+
 providerSelect.addEventListener('change', () => {
   refreshModelUI();
 });
@@ -190,6 +220,7 @@ grantBtn.addEventListener('click', async () => {
   apiKeyInput.value = settings.apiKey;
   modelInput.value = settings.model;
   preferredLanguageInput.value = toSupportedLanguage(settings.preferredLanguage);
+  captureSavedSnapshot();
   await refreshModelUI();
 })();
 
@@ -238,6 +269,7 @@ form.addEventListener('submit', async (e) => {
     preferredLanguage: next.preferredLanguage,
     ...(consentScopeChanged ? { consented: false, consentedProviderFingerprint: '' } : {}),
   });
+  captureSavedSnapshot();
   savedFlag.hidden = false;
   setTimeout(() => {
     savedFlag.hidden = true;

@@ -1,15 +1,10 @@
-import { isChineseLanguage } from './settings.js';
+import { getLanguage } from './i18n/index.js';
 
 export const PROMPT_VERSION = 'v2';
 
 function languageInstruction(language) {
-  const requested = language || 'English';
-  const isZh = isChineseLanguage(requested);
-  const langForPrompt = isZh ? 'Simplified Chinese (zh-Hans)' : requested;
-  const scriptNote = isZh
-    ? ' Use simplified Chinese characters only — never traditional (繁體). Prefer Mainland punctuation and conventions.'
-    : '';
-  return `Preferred output language: ${langForPrompt}.${scriptNote}
+  const { promptName, scriptNote } = getLanguage(language);
+  return `Preferred output language: ${promptName}.${scriptNote}
 Write all reader-facing generated content in the preferred output language, including definitions, headings, summaries, quiz questions, explanations, dialogue, and suggested replies.
 Keep article titles, URLs, exact evidence substrings, and [[term:N|label]] display labels faithful to the source when appropriate.`;
 }

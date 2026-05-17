@@ -15,10 +15,7 @@
       <form id="settings-form" class="form">
         <div class="field">
           <label for="preferredLanguage">Preferred language</label>
-          <select id="preferredLanguage">
-            <option value="English">English</option>
-            <option value="Simplified Chinese">Simplified Chinese (简体中文)</option>
-          </select>
+          <select id="preferredLanguage"></select>
           <p class="field__hint">
             Depth will use this for its interface when supported and ask the model to answer in it.
           </p>
@@ -70,6 +67,9 @@
 
         <div class="actions">
           <button type="submit" class="btn btn--primary">Save</button>
+          <span id="dirty-flag" class="dirty-flag" hidden>
+            Unsaved changes — click Save to keep them.
+          </span>
           <span id="saved-flag" class="saved-flag" hidden>Saved</span>
           <span id="save-error" class="save-error" hidden></span>
         </div>
