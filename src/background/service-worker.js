@@ -1,4 +1,5 @@
 import { streamMessage } from './api.js';
+import contentScriptPath from '../content/content-script.js?script&module';
 import { getCached, setCached, clearCached } from './cache.js';
 import { getSettings, isGenerationConfigured, providerFingerprint, hasConsentedToProvider } from '../lib/settings.js';
 import { contentHash } from '../lib/content-hash.js';
@@ -12,10 +13,8 @@ import {
 } from '../lib/prompts.js';
 
 async function injectContentScript(tabId) {
-  const cs = chrome.runtime.getManifest().content_scripts?.[0];
-  if (!cs?.js?.length) return false;
   try {
-    await chrome.scripting.executeScript({ target: { tabId }, files: cs.js });
+    await chrome.scripting.executeScript({ target: { tabId }, files: [contentScriptPath] });
     return true;
   } catch {
     return false;
