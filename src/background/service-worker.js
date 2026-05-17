@@ -267,8 +267,26 @@ function handleQuiz(port) {
     }
 
     safePost(port, { type: 'started' });
-    let lastData = null;
     try {
+      if (settings.providerMode === 'hosted') {
+        const { data } = await streamHosted({
+          kind: 'quiz',
+          settings,
+          body: { title, url, text, keyTerms, preferredLanguage: settings.preferredLanguage },
+          signal: controller.signal,
+          onPartial: (data) => {
+            if (getAborted()) return;
+            safePost(port, { type: 'partial', data });
+          },
+        });
+        if (!getAborted() && data) {
+          await setCached(hash, data, 'quiz');
+          safePost(port, { type: 'done', data });
+        }
+        return;
+      }
+
+      let lastData = null;
       await streamMessage({
         settings,
         system: SYSTEM_QUIZ,
@@ -289,7 +307,17 @@ function handleQuiz(port) {
       }
     } catch (err) {
       console.warn('[Depth] handleQuiz error:', err?.message);
-      if (!getAborted()) safePost(port, { type: 'error', code: 'API_ERROR', message: publicApiErrorMessage(err) });
+      if (getAborted()) return;
+      if (err instanceof HostedError) {
+        safePost(port, {
+          type: 'error',
+          code: err.code,
+          message: err.message,
+          upgradeUrl: err.upgradeUrl,
+        });
+        return;
+      }
+      safePost(port, { type: 'error', code: 'API_ERROR', message: publicApiErrorMessage(err) });
     }
   });
 }
@@ -297,7 +325,10 @@ function handleQuiz(port) {
 // ----- Level 5: Deep Dive, multi-turn, not cached -----
 function handleDive(port) {
   const { controller, getAborted } = makeAbort(port);
-  let context = null; // { title, system, settings }
+  // BYOK keeps a server-style chat: a precomputed `system` prompt + the
+  // running message list. Hosted keeps only the grounding (title + summary)
+  // because the backend is stateless and rebuilds the prompt per turn.
+  let context = null; // { settings, title, summary, system? }
 
   port.onMessage.addListener(async (msg) => {
     if (msg?.type === 'start') {
@@ -305,20 +336,29 @@ function handleDive(port) {
       if (!isGenerationConfigured(settings)) return safePost(port, { type: 'error', code: 'NO_API_KEY' });
       if (!hasConsentedToProvider(settings)) return safePost(port, { type: 'error', code: 'NO_PROVIDER_CONSENT' });
       context = {
-        title: msg.title,
         settings,
-        system: buildSystemDive({
-          title: msg.title,
-          summary: msg.summary,
-          preferredLanguage: settings.preferredLanguage,
-        }),
+        title: msg.title,
+        url: msg.url,
+        summary: msg.summary,
+        system:
+          settings.providerMode === 'hosted'
+            ? null
+            : buildSystemDive({
+                title: msg.title,
+                summary: msg.summary,
+                preferredLanguage: settings.preferredLanguage,
+              }),
       };
       if (msg.skipOpeningTurn) {
         // Restored session — context is set, but don't generate a fresh opening turn.
         safePost(port, { type: 'context-ready' });
         return;
       }
-      streamTurn([{ role: 'user', content: 'Begin the dialog with your first probing question.' }]);
+      if (settings.providerMode === 'hosted') {
+        streamHostedTurn([]);
+      } else {
+        streamTurn([{ role: 'user', content: 'Begin the dialog with your first probing question.' }]);
+      }
       return;
     }
     if (msg?.type === 'turn') {
@@ -326,7 +366,16 @@ function handleDive(port) {
       const apiMessages = msg.history
         .map((t) => ({ role: t.role, content: t.content }))
         .filter((m) => m.content && m.content.trim().length > 0);
-      // If the first real assistant turn was seeded synthetically, replay its seed.
+
+      if (context.settings.providerMode === 'hosted') {
+        // Hosted: server is stateless and handles seeding. Send the visible
+        // history as-is.
+        streamHostedTurn(apiMessages);
+        return;
+      }
+
+      // BYOK: OpenAI-style chat can't start with an assistant turn. Replay
+      // the synthetic seed if the first message is an assistant turn.
       if (apiMessages[0]?.role === 'assistant') {
         apiMessages.unshift({
           role: 'user',
@@ -365,6 +414,48 @@ function handleDive(port) {
     } catch (err) {
       console.warn('[Depth] handleDive error:', err?.message);
       if (!getAborted()) safePost(port, { type: 'error', code: 'API_ERROR', message: publicApiErrorMessage(err) });
+    }
+  }
+
+  async function streamHostedTurn(messages) {
+    safePost(port, { type: 'turn-started' });
+    try {
+      const { data } = await streamHosted({
+        kind: 'dive',
+        settings: context.settings,
+        body: {
+          title: context.title,
+          url: context.url,
+          summary: context.summary,
+          messages,
+          preferredLanguage: context.settings.preferredLanguage,
+        },
+        signal: controller.signal,
+        onPartial: (data) => {
+          if (getAborted()) return;
+          safePost(port, { type: 'partial-turn', data });
+        },
+      });
+      if (!getAborted() && data) {
+        const finalData = {
+          ...data,
+          suggestedReplies: shuffle(data.suggestedReplies ?? []),
+        };
+        safePost(port, { type: 'turn-done', data: finalData });
+      }
+    } catch (err) {
+      console.warn('[Depth] handleDive hosted error:', err?.message);
+      if (getAborted()) return;
+      if (err instanceof HostedError) {
+        safePost(port, {
+          type: 'error',
+          code: err.code,
+          message: err.message,
+          upgradeUrl: err.upgradeUrl,
+        });
+        return;
+      }
+      safePost(port, { type: 'error', code: 'API_ERROR', message: publicApiErrorMessage(err) });
     }
   }
 }
