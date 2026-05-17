@@ -10,7 +10,7 @@ import {
   getProvider,
 } from '../../lib/settings.js';
 import { getSession, saveSession, clearSession } from '../../lib/session.js';
-import { addToDeck } from '../../lib/deck.js';
+import { addToDeck, getDeck, removeFromDeckByUrl, removeFromDeckById } from '../../lib/deck.js';
 import { getUi } from '../../lib/i18n/index.js';
 import { extractPage } from '../extractor.js';
 import { computeStats } from '../readability-stats.js';
@@ -31,14 +31,15 @@ import PaywallCard from './components/PaywallCard.jsx';
 import StaleBanner from './components/StaleBanner.jsx';
 import UnsupportedCard from './components/UnsupportedCard.jsx';
 import ExtractionStats from './components/ExtractionStats.jsx';
+import DeckView from './components/DeckView.jsx';
 
 const DEFAULT_PANEL_WIDTH = 420;
-const MIN_PANEL_WIDTH = 380;
+const MIN_PANEL_WIDTH = 420;
 const MAX_PANEL_WIDTH = 720;
 const PANEL_WIDTH_KEY = 'depth:panelWidth';
 
 const DEFAULT_PANEL_HEIGHT = 640;
-const MIN_PANEL_HEIGHT = 320;
+const MIN_PANEL_HEIGHT = 420;
 const MAX_PANEL_HEIGHT = 1200;
 const PANEL_HEIGHT_KEY = 'depth:panelHeight';
 const DEFAULT_TOP_OFFSET = 96; // matches CSS `.depth-panel { top: 96px }`
@@ -96,6 +97,13 @@ export default function Panel({ pageMeta, onClose }) {
 
   // Click-header-to-minimize
   const [minimized, setMinimized] = useState(false);
+
+  // Top-level view: 'main' (depth slider + content) or 'deck' (saved cards)
+  const [view, setView] = useState('main');
+
+  // Saved-deck cache (full list; refreshed on mount and after save)
+  const [deck, setDeck] = useState([]);
+  const urlIsSaved = deck.some((c) => c?.source?.url === pageMeta.url);
 
   // Quiz state
   const [quizData, setQuizData] = useState(null);
@@ -565,6 +573,15 @@ export default function Panel({ pageMeta, onClose }) {
     }
   }, []);
 
+  // Load the saved-deck on mount.
+  useEffect(() => {
+    let cancelled = false;
+    getDeck().then((d) => {
+      if (!cancelled) setDeck(Array.isArray(d) ? d : []);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   // Restore persisted width + height + minimized on first mount.
   useEffect(() => {
     let cancelled = false;
@@ -703,7 +720,26 @@ export default function Panel({ pageMeta, onClose }) {
     openSettings();
   }
 
+  // Paywall upgrade CTA. For signed-in users, ask the SW to create a Stripe
+  // Checkout session and open it in a new tab — one click straight to
+  // payment, no detour through a marketing page. For anonymous users we
+  // fall through (return false) so PaywallCard's anchor handles it the
+  // old way: link to the static upgrade page where they can sign in.
+  async function onUpgrade() {
+    if (settings?.hostedIsAnonymous !== false) return false;
+    try {
+      const res = await chrome.runtime.sendMessage({ type: 'depth:open-checkout' });
+      if (res?.ok) return true;
+      console.warn('[Depth panel] checkout failed:', res?.code, res?.message);
+      return false;
+    } catch (e) {
+      console.warn('[Depth panel] open-checkout sendMessage threw:', e?.message);
+      return false;
+    }
+  }
+
   async function onSave() {
+    if (urlIsSaved) return;
     if (!data) return;
     const source = { title: pageMeta.title, url: pageMeta.url, savedAt: Date.now() };
     if (level === 1 && data.glance?.sentence) {
@@ -730,11 +766,21 @@ export default function Panel({ pageMeta, onClose }) {
     } else {
       return;
     }
-    setSaveFlash(true);
-    setTimeout(() => setSaveFlash(false), 1200);
+    setDeck(await getDeck());
+  }
+
+  async function onUnsave() {
+    if (!urlIsSaved) return;
+    setDeck(await removeFromDeckByUrl(pageMeta.url));
+  }
+
+  async function onRemoveCard(id) {
+    if (!id) return;
+    setDeck(await removeFromDeckById(id));
   }
 
   function canSave() {
+    if (urlIsSaved) return false;
     if (level <= 3) return status === 'ready';
     if (level === 4) return quizStatus === 'ready' && quizData?.questions?.[quizIndex];
     if (level === 5) return diveStatus === 'ready' && diveTurns.length >= 2;
@@ -822,6 +868,7 @@ export default function Panel({ pageMeta, onClose }) {
         ui={ui}
       />
 
+      {view === 'main' && (
       <div class="depth-panel__slider">
         <div class="depth-panel__slider-row">
           <div class="depth-panel__slider-leftgroup">
@@ -844,92 +891,106 @@ export default function Panel({ pageMeta, onClose }) {
           ui={ui}
         />
       </div>
+      )}
 
       <div class="depth-panel__content">
-        {staleUrl && (
-          <StaleBanner onReload={onReloadStale} onDismiss={() => setStaleUrl(null)} ui={ui} />
-        )}
-
-        {status === 'needs-key' && <SetupView ui={ui} />}
-        {status === 'needs-consent' && extracted && (
-          <ConsentModal
-            extracted={extracted}
-            pageMeta={pageMeta}
-            provider={settings ? getProvider(settings) : null}
-            model={settings?.model}
-            onAccept={onConsent}
-            onClose={onClose}
+        {view === 'deck' ? (
+          <DeckView
+            deck={deck}
+            onBack={() => setView('main')}
+            onRemove={onRemoveCard}
             ui={ui}
           />
-        )}
-        {status === 'unsupported' && (
-          <UnsupportedCard extracted={extracted} onTryAnyway={onTryAnyway} ui={ui} />
-        )}
-        {status === 'error' && error?.code === 'LIMIT_REACHED' && (
-          <PaywallCard error={error} onUseOwnKey={onUseOwnKey} ui={ui} />
-        )}
-        {status === 'error' && error?.code !== 'LIMIT_REACHED' && (
-          <ErrorState error={error} onRetry={init} ui={ui} />
-        )}
-
-        {(status === 'generating' || status === 'ready' || status === 'init') && (
+        ) : (
           <>
-            {extracted && <ExtractionStats extracted={extracted} ui={ui} />}
-            <LevelTabPill level={current} metaOverride={pillMeta} />
-            <DepthStage
-              level={level}
-              renderLevel={(lv) => (
-                <ContentSwitch
-                  level={lv}
-                  data={data}
-                  stats={stats}
-                  extracted={extracted}
-                  status={status}
-                  quizData={quizData}
-                  quizStatus={quizStatus}
-                  quizError={quizError}
-                  quizIndex={quizIndex}
-                  quizAnswers={quizAnswers}
-                  onQuizSelect={(i) => setQuizAnswers({ ...quizAnswers, [quizIndex]: i })}
-                  onQuizNext={() => setQuizIndex(quizIndex + 1)}
-                  onQuizRestart={() => {
-                    setQuizIndex(0);
-                    setQuizAnswers({});
-                    if (quizStatus !== 'ready') startQuiz();
-                  }}
-                  diveTurns={diveTurns}
-                  diveStatus={diveStatus}
-                  diveError={diveError}
-                  diveInput={diveInput}
-                  onDiveInput={setDiveInput}
-                  onDiveSend={sendDiveMessage}
-                  onDiveRestart={() => {
-                    setDiveTurns([]);
-                    setDiveStatus('idle');
-                    setDiveError(null);
-                    setDiveInput('');
-                  }}
-                  ui={ui}
+            {staleUrl && (
+              <StaleBanner onReload={onReloadStale} onDismiss={() => setStaleUrl(null)} ui={ui} />
+            )}
+
+            {status === 'needs-key' && <SetupView ui={ui} />}
+            {status === 'needs-consent' && extracted && (
+              <ConsentModal
+                extracted={extracted}
+                pageMeta={pageMeta}
+                provider={settings ? getProvider(settings) : null}
+                model={settings?.model}
+                onAccept={onConsent}
+                onClose={onClose}
+                ui={ui}
+              />
+            )}
+            {status === 'unsupported' && (
+              <UnsupportedCard extracted={extracted} onTryAnyway={onTryAnyway} ui={ui} />
+            )}
+            {status === 'error' && error?.code === 'LIMIT_REACHED' && (
+              <PaywallCard
+                error={error}
+                onUseOwnKey={onUseOwnKey}
+                onUpgrade={onUpgrade}
+                ui={ui}
+              />
+            )}
+            {status === 'error' && error?.code !== 'LIMIT_REACHED' && (
+              <ErrorState error={error} onRetry={init} ui={ui} />
+            )}
+
+            {(status === 'generating' || status === 'ready' || status === 'init') && (
+              <>
+                {extracted && <ExtractionStats extracted={extracted} ui={ui} />}
+                <LevelTabPill level={current} metaOverride={pillMeta} />
+                <DepthStage
+                  level={level}
+                  renderLevel={(lv) => (
+                    <ContentSwitch
+                      level={lv}
+                      data={data}
+                      stats={stats}
+                      extracted={extracted}
+                      status={status}
+                      quizData={quizData}
+                      quizStatus={quizStatus}
+                      quizError={quizError}
+                      quizIndex={quizIndex}
+                      quizAnswers={quizAnswers}
+                      onQuizSelect={(i) => setQuizAnswers({ ...quizAnswers, [quizIndex]: i })}
+                      onQuizNext={() => setQuizIndex(quizIndex + 1)}
+                      onQuizRestart={() => {
+                        setQuizIndex(0);
+                        setQuizAnswers({});
+                        if (quizStatus !== 'ready') startQuiz();
+                      }}
+                      diveTurns={diveTurns}
+                      diveStatus={diveStatus}
+                      diveError={diveError}
+                      diveInput={diveInput}
+                      onDiveInput={setDiveInput}
+                      onDiveSend={sendDiveMessage}
+                      onDiveRestart={() => {
+                        setDiveTurns([]);
+                        setDiveStatus('idle');
+                        setDiveError(null);
+                        setDiveInput('');
+                      }}
+                      ui={ui}
+                    />
+                  )}
                 />
-              )}
-            />
+              </>
+            )}
           </>
         )}
       </div>
 
-      {/*
-        Post-MVP: re-enable PanelFooter once the Save-to-deck, Share, and Close
-        actions have real homes. Save needs a deck-browsing UI (cards are
-        currently written to storage with no way to review them); Share needs a
-        target surface decision; Close duplicates the header X and Escape.
-      */}
-      {/* <PanelFooter
-        onClose={onClose}
-        onSave={onSave}
-        canSave={canSave()}
-        flash={saveFlash}
-        ui={ui}
-      /> */}
+      {view === 'main' && (
+        <PanelFooter
+          onSave={onSave}
+          onUnsave={onUnsave}
+          onOpenDeck={() => setView('deck')}
+          canSave={canSave()}
+          isSaved={urlIsSaved}
+          ui={ui}
+        />
+      )}
     </div>
   );
 }

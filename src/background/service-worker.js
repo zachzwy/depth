@@ -1,6 +1,7 @@
 import { streamMessage } from './api.js';
 import { streamHosted, HostedError } from './hosted-client.js';
 import { ensureHostedSession } from './hosted-auth.js';
+import { openCheckout, BillingError } from './billing.js';
 import contentScriptPath from '../content/content-script.js?script';
 import { getCached, setCached, clearCached } from './cache.js';
 import { getSettings, isGenerationConfigured, providerFingerprint, hasConsentedToProvider } from '../lib/settings.js';
@@ -84,6 +85,22 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     console.log('[Depth] received open-options');
     openOptionsPageRobust();
     return;
+  }
+  if (msg?.type === 'depth:open-checkout') {
+    (async () => {
+      // The panel runs in a content-script context and can't open a tab
+      // directly — route through the SW. The billing helper handles the
+      // anonymous-session refusal + the chrome.tabs.create(stripeUrl) step.
+      try {
+        const settings = await getSettings();
+        const result = await openCheckout(settings);
+        sendResponse({ ok: true, url: result.url });
+      } catch (err) {
+        const code = err instanceof BillingError ? err.code : 'BILLING_FAILED';
+        sendResponse({ ok: false, code, message: err?.message ?? 'Checkout failed' });
+      }
+    })();
+    return true;
   }
   if (msg?.type === 'depth:probe-quiz') {
     (async () => {
