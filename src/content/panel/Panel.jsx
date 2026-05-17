@@ -662,13 +662,19 @@ export default function Panel({ pageMeta, onClose }) {
         )}
       </div>
 
-      <PanelFooter
+      {/*
+        Post-MVP: re-enable PanelFooter once the Save-to-deck, Share, and Close
+        actions have real homes. Save needs a deck-browsing UI (cards are
+        currently written to storage with no way to review them); Share needs a
+        target surface decision; Close duplicates the header X and Escape.
+      */}
+      {/* <PanelFooter
         onClose={onClose}
         onSave={onSave}
         canSave={canSave()}
         flash={saveFlash}
         ui={ui}
-      />
+      /> */}
     </div>
   );
 }
