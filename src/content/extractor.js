@@ -6,13 +6,40 @@ const MIN_TEXT_LENGTH = 200;
 const MAX_TEXT_LENGTH = 60000;
 
 export function extractPage() {
+  const url = typeof location !== 'undefined' ? location.href : '';
+  const urlVerdict = classifyByUrl(url);
+  const extraction = tryReadability() ?? tryFallback();
+
+  let kind;
+  if (urlVerdict) kind = urlVerdict;
+  else if (extraction) kind = 'article';
+  else kind = 'unsupported';
+
+  if (extraction) {
+    return { ...extraction, classification: { kind } };
+  }
+  // No extractable text. Still return a stub so the refusal UI can render
+  // with the page title and URL intact.
+  return {
+    title: typeof document !== 'undefined' ? document.title : '',
+    byline: null,
+    siteName: null,
+    text: '',
+    wordCount: 0,
+    truncated: false,
+    classification: { kind },
+  };
+}
+
+function tryReadability() {
+  if (typeof document === 'undefined') return null;
   if (!isProbablyReaderable(document, { minContentLength: MIN_TEXT_LENGTH })) {
-    return tryFallback();
+    return null;
   }
   const clone = document.cloneNode(true);
   const article = new Readability(clone).parse();
   if (!article || (article.textContent?.length ?? 0) < MIN_TEXT_LENGTH) {
-    return tryFallback();
+    return null;
   }
   const fullText = article.textContent.trim();
   const text = fullText.length > MAX_TEXT_LENGTH ? fullText.slice(0, MAX_TEXT_LENGTH) : fullText;
@@ -27,6 +54,7 @@ export function extractPage() {
 }
 
 function tryFallback() {
+  if (typeof document === 'undefined') return null;
   const main =
     document.querySelector('main') ||
     document.querySelector('article') ||
@@ -44,6 +72,44 @@ function tryFallback() {
     truncated: fullText.length > MAX_TEXT_LENGTH,
   };
 }
+
+// URL-only classification. Returns 'feed' | 'discussion' | null.
+// Conservative on purpose: only sites where the page shape is unambiguous.
+// Anything not matched falls through to Readability and is treated as an
+// article on success or unsupported on failure.
+export function classifyByUrl(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+  const path = parsed.pathname || '/';
+
+  if (DISCUSSION_RULES.some((rule) => rule(host, path))) return 'discussion';
+  if (FEED_RULES.some((rule) => rule(host, path))) return 'feed';
+  return null;
+}
+
+const DISCUSSION_RULES = [
+  (host, path) => host === 'news.ycombinator.com' && /^\/item\b/.test(path),
+  (host, path) =>
+    (host === 'reddit.com' || host === 'old.reddit.com') && /\/comments\//.test(path),
+  (host, path) => host === 'github.com' && /\/(issues|pull)\/\d+/.test(path),
+  (host, path) => host === 'stackoverflow.com' && /\/questions\/\d+/.test(path),
+];
+
+const FEED_RULES = [
+  // Pure feed/social hosts — any path on these is a feed for our purposes.
+  (host) => host === 'twitter.com' || host === 'x.com',
+  (host) => host === 'bsky.app' || host === 'threads.net',
+  // HN front, newest, etc. Item pages already matched by discussion rule above.
+  (host, path) =>
+    host === 'news.ycombinator.com' && /^\/(news|newest|front|best|active|ask|show|jobs)?\/?$/.test(path),
+  // Reddit roots and subreddit roots (anything not /comments/, already excluded above).
+  (host, path) => host === 'reddit.com' && /^\/(r\/[^/]+\/?)?$/.test(path),
+];
 
 function countWords(text) {
   return text.trim().split(/\s+/).filter(Boolean).length;

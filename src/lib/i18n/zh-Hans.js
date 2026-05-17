@@ -88,4 +88,22 @@ export const zhHans = {
   },
   quizProgress: (shown, total) => `第 ${shown} / ${total} 题`,
   done: '完成',
+  extractedWords: (n) => `${n.toLocaleString('zh-CN')} 词`,
+  extractKind: {
+    article: '文章',
+    feed: '信息流',
+    discussion: '评论讨论',
+    unsupported: '未找到文章',
+  },
+  unsupportedTitle: {
+    feed: '这看起来是一个信息流',
+    discussion: '这看起来是一个评论讨论页',
+    unsupported: '没有在此页面找到文章',
+  },
+  unsupportedBody: {
+    feed: 'Depth 更适合阅读单篇文章 —— 试着打开某一条具体的帖子。',
+    discussion: '目前 Depth 只总结原帖内容，评论暂未支持。',
+    unsupported: 'Depth 更适合长篇阅读内容。',
+  },
+  tryAnyway: '仍然尝试',
 };

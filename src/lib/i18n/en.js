@@ -85,4 +85,22 @@ export const en = {
   },
   quizProgress: (shown, total) => `Question ${shown} of ${total}`,
   done: 'Done',
+  extractedWords: (n) => `${n.toLocaleString('en-US')} words`,
+  extractKind: {
+    article: 'article',
+    feed: 'feed',
+    discussion: 'discussion',
+    unsupported: 'no article found',
+  },
+  unsupportedTitle: {
+    feed: 'This looks like a feed',
+    discussion: 'This looks like a discussion thread',
+    unsupported: "Couldn't find an article here",
+  },
+  unsupportedBody: {
+    feed: 'Depth works best on individual articles — try opening a single post.',
+    discussion: "Depth currently summarizes the original post only; comments aren't supported yet.",
+    unsupported: 'Depth works best on long-form writing.',
+  },
+  tryAnyway: 'Try anyway',
 };

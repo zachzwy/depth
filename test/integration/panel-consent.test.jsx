@@ -8,6 +8,7 @@ vi.mock('../../src/content/extractor.js', () => ({
     text: 'Body text long enough. '.repeat(40),
     wordCount: 120,
     truncated: false,
+    classification: { kind: 'article' },
   }),
 }));
 

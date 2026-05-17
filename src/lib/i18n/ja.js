@@ -88,4 +88,22 @@ export const ja = {
   },
   quizProgress: (shown, total) => `${total} 問中 ${shown} 問目`,
   done: '完了',
+  extractedWords: (n) => `${n.toLocaleString('ja-JP')} 語`,
+  extractKind: {
+    article: '記事',
+    feed: 'フィード',
+    discussion: 'コメントスレッド',
+    unsupported: '記事が見つかりません',
+  },
+  unsupportedTitle: {
+    feed: 'これはフィードのようです',
+    discussion: 'これはコメントスレッドのようです',
+    unsupported: '記事が見つかりませんでした',
+  },
+  unsupportedBody: {
+    feed: 'Depth は個別の記事で最も力を発揮します。単独の投稿を開いてみてください。',
+    discussion: '現在 Depth は元の投稿のみを要約します。コメントにはまだ対応していません。',
+    unsupported: 'Depth は長文の読み物で最も力を発揮します。',
+  },
+  tryAnyway: 'それでも試す',
 };
