@@ -39,6 +39,7 @@ Packaged Depth currently supports OpenRouter. In Settings, provide:
 - Provider: OpenRouter
 - OpenRouter API key
 - Model name, for example `openai/gpt-4.1-mini`
+- Preferred language for supported interface labels and generated summaries
 
 The code keeps providers in a small registry so open-source users can add their own endpoints and matching manifest permissions. A hosted Depth API can be added later as the default provider for limited free trials and paid higher limits.
 

@@ -1,36 +1,33 @@
 import { useState } from 'preact/hooks';
 
-export default function ConsentModal({ extracted, pageMeta, provider, model, onAccept, onClose }) {
+export default function ConsentModal({ extracted, pageMeta, provider, model, onAccept, onClose, ui }) {
   const [showPayload, setShowPayload] = useState(false);
-  const providerLabel = provider?.label ?? 'your model provider';
+  const providerLabel = provider?.label ?? ui.modelProvider;
   return (
     <div class="state state--consent">
-      <h2 class="state__title">Send this page to {providerLabel}?</h2>
-      <p class="state__body">
-        Depth will send the extracted article text plus the page title and URL to {providerLabel}
-        {model ? ` using ${model}` : ''}. Nothing else leaves your browser.
-      </p>
+      <h2 class="state__title">{ui.consentTitle(providerLabel)}</h2>
+      <p class="state__body">{ui.consentBody(providerLabel, model)}</p>
       <button
         type="button"
         class="state__link"
         onClick={() => setShowPayload((v) => !v)}
       >
-        {showPayload ? 'Hide preview' : 'Show what will be sent'}
+        {showPayload ? ui.hidePayload : ui.showPayload}
       </button>
       {showPayload && (
         <pre class="state__payload">{
-`Title: ${extracted.title}
-URL: ${pageMeta.url}
+`${ui.titleLabel}: ${extracted.title}
+${ui.urlLabel}: ${pageMeta.url}
 
 ${extracted.text.slice(0, 800)}${extracted.text.length > 800 ? '\n…' : ''}`
         }</pre>
       )}
       <div class="state__actions">
         <button type="button" class="state__cta" onClick={onAccept}>
-          Continue
+          {ui.continue}
         </button>
         <button type="button" class="state__secondary" onClick={onClose}>
-          Cancel
+          {ui.cancel}
         </button>
       </div>
     </div>

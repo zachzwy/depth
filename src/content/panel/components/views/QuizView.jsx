@@ -12,10 +12,11 @@ export default function QuizView({
   onSelect,
   onNext,
   onRestart,
+  ui,
 }) {
-  if (status === 'error') return <ErrorState error={error} onRetry={onRestart} />;
+  if (status === 'error') return <ErrorState error={error} onRetry={onRestart} ui={ui} />;
   if (status !== 'ready' || !data?.questions?.length) {
-    return <LoadingSkeleton message="Building your quiz…" />;
+    return <LoadingSkeleton message={ui.buildQuiz} />;
   }
 
   const total = data.questions.length;
@@ -32,11 +33,17 @@ export default function QuizView({
             {score}<span class="quiz__score-total"> / {total}</span>
           </div>
           <div class="quiz__score-label">
-            {score === total ? 'Perfect.' : score >= total - 1 ? 'Strong.' : score >= total / 2 ? 'Decent.' : 'Re-read?'}
+            {score === total
+              ? ui.perfect
+              : score >= total - 1
+                ? ui.strong
+                : score >= total / 2
+                  ? ui.decent
+                  : ui.rereadQuestion}
           </div>
         </div>
         <button type="button" class="state__cta" onClick={onRestart}>
-          Try again
+          {ui.tryAgain}
         </button>
       </div>
     );
@@ -78,16 +85,16 @@ export default function QuizView({
       {reviewing && (
         <div class={`quiz__feedback ${isCorrect ? 'is-correct' : 'is-wrong'}`}>
           <p class="quiz__feedback-headline">
-            {isCorrect ? '✓ Right.' : `✗ Not quite — the answer was ${LETTERS[q.correctIndex]}.`}
+            {isCorrect ? `✓ ${ui.right}` : `✗ ${ui.notQuite(LETTERS[q.correctIndex])}`}
           </p>
           <p class="quiz__feedback-body">{q.explanation}</p>
           {!isCorrect && userAnswer !== q.commonWrongIndex && q.commonWrongWhy && (
             <p class="quiz__feedback-aside">
-              <em>Common trap:</em> {LETTERS[q.commonWrongIndex]} — {q.commonWrongWhy}
+              <em>{ui.commonTrap}</em> {LETTERS[q.commonWrongIndex]} - {q.commonWrongWhy}
             </p>
           )}
           <button type="button" class="quiz__next" onClick={onNext}>
-            {index < total - 1 ? 'Next question →' : 'See score →'}
+            {index < total - 1 ? ui.nextQuestion : ui.seeScore}
           </button>
         </div>
       )}

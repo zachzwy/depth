@@ -10,6 +10,7 @@ export default function DiveView({
   onInputChange,
   onSend,
   onRestart,
+  ui,
 }) {
   const streamRef = useRef(null);
 
@@ -18,9 +19,9 @@ export default function DiveView({
     if (el) el.scrollTop = el.scrollHeight;
   }, [turns]);
 
-  if (status === 'error') return <ErrorState error={error} onRetry={onRestart} />;
+  if (status === 'error') return <ErrorState error={error} onRetry={onRestart} ui={ui} />;
   if (turns.length === 0 && status !== 'streaming') {
-    return <LoadingSkeleton message="Opening the dive…" />;
+    return <LoadingSkeleton message={ui.openingDive} />;
   }
 
   const last = turns[turns.length - 1];
@@ -41,7 +42,7 @@ export default function DiveView({
         {turns.map((t, i) => (
           <div class={`dive__turn dive__turn--${t.role}`} key={i}>
             <div class="dive__avatar" aria-hidden="true">
-              {t.role === 'assistant' ? 'D' : 'You'}
+              {t.role === 'assistant' ? 'D' : ui.you}
             </div>
             <div class={`dive__bubble ${i === turns.length - 1 && isStreaming ? 'is-streaming' : ''}`}>
               {t.content || (i === turns.length - 1 && isStreaming ? '…' : '')}
@@ -70,7 +71,7 @@ export default function DiveView({
         <input
           type="text"
           class="dive__input"
-          placeholder={isStreaming ? 'Thinking…' : 'Answer or ask back…'}
+          placeholder={isStreaming ? ui.thinking : ui.divePlaceholder}
           value={input ?? ''}
           onInput={(e) => onInputChange(e.currentTarget.value)}
           disabled={isStreaming}
@@ -78,7 +79,7 @@ export default function DiveView({
         <button
           type="submit"
           class="dive__send"
-          aria-label="Send"
+          aria-label={ui.send}
           disabled={isStreaming || !input?.trim()}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

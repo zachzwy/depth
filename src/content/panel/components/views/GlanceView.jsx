@@ -1,6 +1,6 @@
 import { renderWithTerms } from '../TermHighlight.jsx';
 
-export default function GlanceView({ data }) {
+export default function GlanceView({ data, ui }) {
   return (
     <div class="view view--glance">
       <blockquote class="glance__quote">
@@ -10,14 +10,12 @@ export default function GlanceView({ data }) {
       <div class="glance__meta">
         <span class="glance__termcount">
           {data.termCount > 0
-            ? `${data.highlightedIndex} / ${data.termCount} TERMS`
-            : 'NO KEY TERMS'}
+            ? ui.termCount(data.highlightedIndex, data.termCount)
+            : ui.noKeyTerms}
         </span>
         <span class={`glance__confidence is-${data.confidence}`}>
           <span class="glance__confidence-dot" />
-          {data.confidence === 'high' && 'HIGH CONFIDENCE'}
-          {data.confidence === 'medium' && 'MEDIUM CONFIDENCE'}
-          {data.confidence === 'low' && 'LOW CONFIDENCE'}
+          {ui.confidence[data.confidence]}
         </span>
       </div>
     </div>

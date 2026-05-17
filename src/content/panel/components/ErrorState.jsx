@@ -1,21 +1,21 @@
-const FRIENDLY = {
-  NO_API_KEY: 'Model provider settings are incomplete. Open settings to finish setup.',
-  NO_PROVIDER_CONSENT: 'Provider settings changed. Review consent before sending this page.',
-  NO_CONTENT: "Couldn't find readable article content on this page.",
-  EMPTY_RESPONSE: 'The model returned nothing. Try again?',
-  API_ERROR: 'The API call failed.',
-  SETTINGS_READ_FAILED: 'Could not read settings.',
+const FRIENDLY_KEYS = {
+  NO_API_KEY: 'noApiKey',
+  NO_PROVIDER_CONSENT: 'noProviderConsent',
+  NO_CONTENT: 'noContent',
+  EMPTY_RESPONSE: 'emptyResponse',
+  API_ERROR: 'apiError',
+  SETTINGS_READ_FAILED: 'settingsReadFailed',
 };
 
-export default function ErrorState({ error, onRetry }) {
-  const friendly = FRIENDLY[error?.code] ?? 'Something went wrong.';
+export default function ErrorState({ error, onRetry, ui }) {
+  const friendly = ui[FRIENDLY_KEYS[error?.code]] ?? ui.genericError;
   return (
     <div class="state state--error">
       <h2 class="state__title">{friendly}</h2>
       {error?.message && <pre class="state__detail">{error.message}</pre>}
       {onRetry && (
         <button type="button" class="state__cta" onClick={onRetry}>
-          Try again
+          {ui.tryAgain}
         </button>
       )}
     </div>

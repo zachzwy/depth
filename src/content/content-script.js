@@ -10,7 +10,20 @@ let urlInterval = null;
 
 function ensureHost() {
   let host = document.getElementById(HOST_ID);
-  if (host) return host;
+  if (host) {
+    shadowRoot = host.shadowRoot;
+    if (!shadowRoot) {
+      host.remove();
+      host = null;
+    } else if (!shadowRoot.querySelector('.depth-root')) {
+      const root = document.createElement('div');
+      root.className = 'depth-root';
+      shadowRoot.appendChild(root);
+      return host;
+    } else {
+      return host;
+    }
+  }
 
   host = document.createElement('div');
   host.id = HOST_ID;

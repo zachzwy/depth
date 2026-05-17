@@ -1,8 +1,8 @@
-export default function DepthSlider({ levels, level, onChange, readyLevels }) {
+export default function DepthSlider({ levels, level, onChange, readyLevels, ui }) {
   const fillPct = ((level - 1) / (levels.length - 1)) * 100;
 
   return (
-    <div class="slider" role="radiogroup" aria-label="Reading depth">
+    <div class="slider" role="radiogroup" aria-label={ui.readingDepth}>
       <div class="slider__track">
         <div class="slider__line" />
         <div class="slider__line-fill" style={{ width: `${fillPct}%` }} />
@@ -19,7 +19,7 @@ export default function DepthSlider({ levels, level, onChange, readyLevels }) {
               onClick={() => onChange(l.id)}
               role="radio"
               aria-checked={active}
-              aria-label={`Level ${l.id}: ${l.displayName}${ready ? ' (ready)' : ''}`}
+              aria-label={ui.levelAria(l.id, l.displayName, ready)}
             >
               <span class="slider__num">
                 {l.number}

@@ -1,4 +1,4 @@
-export default function LoadingSkeleton({ message = 'Generating…' }) {
+export default function LoadingSkeleton({ message }) {
   return (
     <div class="skeleton">
       <div class="skeleton__line" style={{ width: '90%' }} />

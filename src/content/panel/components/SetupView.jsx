@@ -1,16 +1,15 @@
-export default function SetupView() {
+export default function SetupView({ ui }) {
   function openSettings() {
     chrome.runtime.sendMessage({ type: 'depth:open-options' });
   }
   return (
     <div class="state state--setup">
-      <h2 class="state__title">Set up Depth</h2>
+      <h2 class="state__title">{ui.setupTitle}</h2>
       <p class="state__body">
-        Select a supported model provider, then add your model and API key. They stay in this
-        browser and are used only when you open Depth.
+        {ui.setupBody}
       </p>
       <button type="button" class="state__cta" onClick={openSettings}>
-        Open Settings
+        {ui.openSettings}
       </button>
     </div>
   );
