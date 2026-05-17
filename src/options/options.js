@@ -8,6 +8,8 @@ import {
   DEFAULT_HOSTED_BASE_URL,
 } from '../lib/settings.js';
 import { LANGUAGE_OPTIONS, getLanguage } from '../lib/i18n/index.js';
+import { signInWithGoogle, signOut, fetchWhoami } from '../background/hosted-auth.js';
+import { openCheckout, openPortal, BillingError } from '../background/billing.js';
 
 const providerSelect = document.getElementById('providerId');
 const apiKeyInput = document.getElementById('apiKey');
@@ -30,6 +32,22 @@ const customSection = document.getElementById('custom-section');
 const hostedGrantBlock = document.getElementById('hosted-grant-block');
 const hostedGrantBtn = document.getElementById('hosted-grant-btn');
 const hostedGrantHint = document.getElementById('hosted-grant-hint');
+
+const accountCard = document.getElementById('account-card');
+const accountTierBadge = document.getElementById('account-tier');
+const accountSignedOut = document.getElementById('account-signed-out');
+const accountSignedIn = document.getElementById('account-signed-in');
+const accountEmail = document.getElementById('account-email');
+const accountUsage = document.getElementById('account-usage');
+const accountRenewal = document.getElementById('account-renewal');
+const signinGoogleBtn = document.getElementById('signin-google-btn');
+const signinError = document.getElementById('signin-error');
+const redirectUrlEl = document.getElementById('redirect-url');
+const copyRedirectBtn = document.getElementById('copy-redirect-btn');
+const upgradeBtn = document.getElementById('upgrade-btn');
+const portalBtn = document.getElementById('portal-btn');
+const signoutBtn = document.getElementById('signout-btn');
+const billingError = document.getElementById('billing-error');
 
 function currentMode() {
   const checked = modeRadios.find((r) => r.checked);
@@ -216,8 +234,225 @@ function applyModeVisibility() {
   const mode = currentMode();
   hostedSection.hidden = mode !== 'hosted';
   customSection.hidden = mode !== 'custom';
-  if (mode === 'hosted') refreshHostedUI();
+  if (mode === 'hosted') {
+    refreshHostedUI();
+    refreshAccountUI();
+  }
 }
+
+// ---- Account section ----
+
+function setInlineError(el, text) {
+  if (!el) return;
+  if (text) {
+    el.textContent = text;
+    el.hidden = false;
+  } else {
+    el.textContent = '';
+    el.hidden = true;
+  }
+}
+
+function formatRenewal(periodEnd, status) {
+  if (!periodEnd) return '';
+  const d = new Date(periodEnd);
+  if (Number.isNaN(d.getTime())) return '';
+  const date = d.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+  if (status === 'canceled' || status === 'unpaid') {
+    return `Access ends ${date}.`;
+  }
+  return `Next renewal: ${date}.`;
+}
+
+function renderAccount(settings, usageSnapshot) {
+  accountCard.hidden = false;
+  setInlineError(signinError, '');
+  setInlineError(billingError, '');
+
+  // The redirect URL is identity-determined, not session-determined — render
+  // it whenever the card paints. chrome.identity is gated on the `identity`
+  // manifest permission; if missing, we just leave the field blank.
+  if (redirectUrlEl) {
+    try {
+      redirectUrlEl.textContent = chrome.identity?.getRedirectURL?.() ?? '';
+    } catch {
+      redirectUrlEl.textContent = '';
+    }
+  }
+
+  const isSignedIn = !settings.hostedIsAnonymous && Boolean(settings.hostedAccessToken);
+
+  if (!isSignedIn) {
+    accountSignedOut.hidden = false;
+    accountSignedIn.hidden = true;
+    accountTierBadge.hidden = true;
+    return;
+  }
+
+  accountSignedOut.hidden = true;
+  accountSignedIn.hidden = false;
+  accountEmail.textContent = settings.hostedEmail || '(no email on file)';
+
+  const tier = settings.hostedTier === 'pro' ? 'pro' : 'free';
+  accountTierBadge.hidden = false;
+  accountTierBadge.textContent = tier === 'pro' ? 'Pro' : 'Free';
+  accountTierBadge.dataset.tier = tier;
+
+  upgradeBtn.hidden = tier !== 'free';
+  portalBtn.hidden = tier !== 'pro';
+
+  if (usageSnapshot?.tiers) {
+    const lines = [];
+    for (const kind of ['generate', 'quiz', 'dive']) {
+      const u = usageSnapshot.tiers[kind];
+      if (u) lines.push(`${labelForKind(kind)} ${u.used}/${u.limit}`);
+    }
+    if (lines.length) {
+      accountUsage.textContent = `Today: ${lines.join(' · ')}`;
+      accountUsage.hidden = false;
+    } else {
+      accountUsage.hidden = true;
+    }
+  } else {
+    accountUsage.hidden = true;
+  }
+
+  const renewalText = formatRenewal(settings.hostedCurrentPeriodEnd, settings.hostedSubscriptionStatus);
+  if (renewalText) {
+    accountRenewal.textContent = renewalText;
+    accountRenewal.hidden = false;
+  } else {
+    accountRenewal.hidden = true;
+  }
+}
+
+function labelForKind(kind) {
+  if (kind === 'generate') return 'Summaries';
+  if (kind === 'quiz') return 'Quizzes';
+  if (kind === 'dive') return 'Dive turns';
+  return kind;
+}
+
+async function fetchUsageSnapshot(settings) {
+  const baseUrl = (settings.hostedBaseUrl ?? '').replace(/\/+$/, '');
+  if (!baseUrl || !settings.hostedAccessToken) return null;
+  try {
+    const res = await fetch(`${baseUrl}/usage`, {
+      headers: {
+        authorization: `Bearer ${settings.hostedAccessToken}`,
+        accept: 'application/json',
+      },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+async function refreshAccountUI({ skipWhoami = false } = {}) {
+  const settings = await getSettings();
+
+  // First paint from cached projection so the UI feels instant.
+  renderAccount(settings, null);
+
+  if (skipWhoami) return;
+  // Quietly refresh tier/subscription from the server; if it errors (no
+  // token, offline) the cached values stand. Usage is fetched in parallel
+  // so the panel populates in one paint cycle.
+  const [whoamiResult, usage] = await Promise.allSettled([
+    settings.hostedAccessToken ? fetchWhoami(settings) : Promise.resolve(null),
+    settings.hostedAccessToken ? fetchUsageSnapshot(settings) : Promise.resolve(null),
+  ]);
+
+  const fresh = await getSettings();
+  const usageSnapshot = usage.status === 'fulfilled' ? usage.value : null;
+  renderAccount(fresh, usageSnapshot);
+
+  if (whoamiResult.status === 'rejected') {
+    console.warn('[options] whoami refresh failed:', whoamiResult.reason);
+  }
+}
+
+copyRedirectBtn?.addEventListener('click', async () => {
+  const text = redirectUrlEl?.textContent ?? '';
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    const original = copyRedirectBtn.textContent;
+    copyRedirectBtn.textContent = 'Copied';
+    setTimeout(() => {
+      copyRedirectBtn.textContent = original;
+    }, 1200);
+  } catch {
+    // Clipboard refused; user can long-press the code instead.
+  }
+});
+
+signinGoogleBtn.addEventListener('click', async () => {
+  setInlineError(signinError, '');
+  signinGoogleBtn.disabled = true;
+  try {
+    const settings = await getSettings();
+    const result = await signInWithGoogle(settings);
+    await refreshAccountUI();
+    if (result?.linked) {
+      // Non-blocking hint that today's anon usage carried over.
+      setInlineError(billingError, '');
+      accountUsage.textContent = (accountUsage.textContent || '') + ' · Linked your anonymous usage history';
+    }
+  } catch (err) {
+    setInlineError(signinError, err.message || 'Sign-in failed.');
+  } finally {
+    signinGoogleBtn.disabled = false;
+  }
+});
+
+signoutBtn.addEventListener('click', async () => {
+  setInlineError(billingError, '');
+  signoutBtn.disabled = true;
+  try {
+    const settings = await getSettings();
+    await signOut(settings);
+    await refreshAccountUI({ skipWhoami: true });
+  } catch (err) {
+    setInlineError(billingError, err.message || 'Sign-out failed.');
+  } finally {
+    signoutBtn.disabled = false;
+  }
+});
+
+upgradeBtn.addEventListener('click', async () => {
+  setInlineError(billingError, '');
+  upgradeBtn.disabled = true;
+  try {
+    const settings = await getSettings();
+    await openCheckout(settings);
+  } catch (err) {
+    const msg = err instanceof BillingError ? err.message : (err.message || 'Could not start checkout.');
+    setInlineError(billingError, msg);
+  } finally {
+    upgradeBtn.disabled = false;
+  }
+});
+
+portalBtn.addEventListener('click', async () => {
+  setInlineError(billingError, '');
+  portalBtn.disabled = true;
+  try {
+    const settings = await getSettings();
+    await openPortal(settings);
+  } catch (err) {
+    const msg = err instanceof BillingError ? err.message : (err.message || 'Could not open billing portal.');
+    setInlineError(billingError, msg);
+  } finally {
+    portalBtn.disabled = false;
+  }
+});
 
 function captureSavedSnapshot() {
   savedSnapshot = currentSnapshot();

@@ -5,3 +5,7 @@ dist/
 *.log
 .env
 .env.local
+
+# Dev signing key — keeps the extension id stable in dev. The matching
+# public key is checked into manifest.json:"key". See PLAN.md.
+.keys/

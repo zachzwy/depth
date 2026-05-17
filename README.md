@@ -27,6 +27,19 @@ npm run build        # production build to ./dist
 3. "Load unpacked" → select `./dist`
 4. Select a supported model provider and set your API key and model in the extension's options page
 
+### Stable extension ID
+
+`manifest.json` ships a `key` field so the extension ID stays constant across reinstalls (`hmgcbgpopbejbinnkfgnbbjecalglebn` for the current key). This matters because Depth Hosted's OAuth flow uses `https://<extension-id>.chromiumapp.org/` as its redirect URL — a drifting ID would mean re-allowlisting on every install.
+
+The matching private key lives at `.keys/depth-extension-dev.pem` (gitignored). Keep it backed up but out of the repo. Production builds uploaded to the Chrome Web Store get re-signed by the store and use a store-assigned ID; the `key` field is for development only.
+
+To rotate (e.g. if the dev key leaks):
+```bash
+openssl genrsa -out .keys/depth-extension-dev.pem 2048
+openssl rsa -in .keys/depth-extension-dev.pem -pubout -outform DER | base64 -w0
+# paste the output into manifest.json:"key"
+```
+
 ### Toggle the panel
 
 - Keyboard: <kbd>Alt</kbd>+<kbd>D</kbd>

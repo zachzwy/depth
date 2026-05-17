@@ -83,6 +83,31 @@ export function installChromeShim() {
   const messageListeners = new Set();
   const connectListeners = new Set();
 
+  // chrome.identity stub. _setLaunchWebAuthFlowResponse seeds the callback
+  // for the next launchWebAuthFlow invocation: either a URL string (success)
+  // or { error: '...' } to simulate the chrome.runtime.lastError path.
+  let nextLaunchResponse = null;
+  function identity() {
+    return {
+      getRedirectURL: vi.fn(() => 'https://test.chromiumapp.org/'),
+      launchWebAuthFlow: vi.fn((_opts, cb) => {
+        const r = nextLaunchResponse;
+        nextLaunchResponse = null;
+        if (r && typeof r === 'object' && 'error' in r) {
+          chromeStub.runtime.lastError = { message: r.error };
+          cb(undefined);
+          chromeStub.runtime.lastError = undefined;
+        } else {
+          cb(typeof r === 'string' ? r : undefined);
+        }
+      }),
+      _setLaunchWebAuthFlowResponse(r) {
+        nextLaunchResponse = r;
+      },
+    };
+  }
+  const identityStub = identity();
+
   const chromeStub = {
     storage: {
       local,
@@ -93,6 +118,7 @@ export function installChromeShim() {
       },
     },
     permissions,
+    identity: identityStub,
     runtime: {
       sendMessage: vi.fn(),
       openOptionsPage: vi.fn(),
@@ -107,6 +133,7 @@ export function installChromeShim() {
         removeListener: (fn) => connectListeners.delete(fn),
       },
       connect: vi.fn(),
+      lastError: undefined,
     },
     tabs: {
       query: vi.fn(() => Promise.resolve([])),

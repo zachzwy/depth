@@ -217,6 +217,18 @@ export const DEFAULTS = {
   hostedAccessToken: '',
   hostedAccessTokenExpiresAt: 0,
   hostedSubjectId: '',
+  // Phase 4 additions. hostedRefreshToken is set whenever we hold any
+  // session (anonymous or permanent); ensureHostedSession prefers refresh
+  // over re-signup so the same auth.users.id (and tier) survives token
+  // expiry. The remaining fields are cached projections of /v1/auth/whoami
+  // so options.js can render the Account section without an extra round
+  // trip on every load — fetchWhoami refreshes them on demand.
+  hostedRefreshToken: '',
+  hostedIsAnonymous: true,
+  hostedEmail: '',
+  hostedTier: 'free',
+  hostedSubscriptionStatus: '',
+  hostedCurrentPeriodEnd: '',
 };
 
 const STORAGE_AREA = 'local';
