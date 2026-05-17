@@ -110,6 +110,13 @@ function safePost(port, msg) {
   }
 }
 
+function publicApiErrorMessage(err) {
+  const message = String(err?.message ?? '');
+  if (message.startsWith('Model provider')) return message;
+  if (message.includes('Missing API key') || message.includes('Missing model')) return message;
+  return 'The model provider request failed. Check your provider settings, API key, quota, and model name.';
+}
+
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -203,9 +210,9 @@ function handleGenerate(port) {
         }
       }
     } catch (err) {
-      console.error('[Depth] handleGenerate error:', err);
+      console.warn('[Depth] handleGenerate error:', err?.message);
       if (!getAborted()) {
-        safePost(port, { type: 'error', code: 'API_ERROR', message: String(err.message) });
+        safePost(port, { type: 'error', code: 'API_ERROR', message: publicApiErrorMessage(err) });
       }
     }
   });
@@ -250,7 +257,8 @@ function handleQuiz(port) {
         safePost(port, { type: 'error', code: 'EMPTY_RESPONSE' });
       }
     } catch (err) {
-      if (!getAborted()) safePost(port, { type: 'error', code: 'API_ERROR', message: String(err.message) });
+      console.warn('[Depth] handleQuiz error:', err?.message);
+      if (!getAborted()) safePost(port, { type: 'error', code: 'API_ERROR', message: publicApiErrorMessage(err) });
     }
   });
 }
@@ -320,7 +328,8 @@ function handleDive(port) {
         safePost(port, { type: 'error', code: 'EMPTY_RESPONSE' });
       }
     } catch (err) {
-      if (!getAborted()) safePost(port, { type: 'error', code: 'API_ERROR', message: String(err.message) });
+      console.warn('[Depth] handleDive error:', err?.message);
+      if (!getAborted()) safePost(port, { type: 'error', code: 'API_ERROR', message: publicApiErrorMessage(err) });
     }
   }
 }

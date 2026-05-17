@@ -78,9 +78,16 @@ export async function streamMessage({
   console.log('[Depth] response', res.status, res.statusText);
 
   if (!res.ok) {
-    const errText = await res.text();
-    console.error('[Depth] API error body:', errText);
-    throw new Error(`Model API ${res.status}: ${errText.slice(0, 400)}`);
+    await res.text().catch(() => '');
+    console.warn('[Depth] model API request failed', {
+      status: res.status,
+      statusText: res.statusText,
+      provider: provider.id,
+      model: settings.model,
+    });
+    throw new Error(
+      `Model provider request failed (${res.status}${res.statusText ? ` ${res.statusText}` : ''}). Check your provider settings, API key, quota, and model name.`,
+    );
   }
 
   const reader = res.body.getReader();
@@ -131,8 +138,11 @@ export async function streamMessage({
         }
       }
       if (event.type === 'error') {
-        console.error('[Depth] stream error event:', event);
-        throw new Error(event.error?.message ?? 'stream error');
+        console.warn('[Depth] model stream returned an error event', {
+          provider: provider.id,
+          model: settings.model,
+        });
+        throw new Error('Model provider stream failed. Check your provider settings, quota, and model name.');
       }
     }
   }
@@ -141,8 +151,6 @@ export async function streamMessage({
     totalChars: textAcc.length,
     partialAttempts,
     partialFires,
-    firstChars: textAcc.slice(0, 200),
-    lastChars: textAcc.slice(-200),
   });
   return textAcc;
 }
