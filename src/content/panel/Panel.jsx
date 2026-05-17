@@ -10,7 +10,8 @@ import {
   getProvider,
 } from '../../lib/settings.js';
 import { getSession, saveSession, clearSession } from '../../lib/session.js';
-import { addToDeck, getDeck, removeFromDeckByUrl, removeFromDeckById } from '../../lib/deck.js';
+import { addToDeck, getDeck, removeFromDeckByUrl, removeFromDeckById, updateInDeck } from '../../lib/deck.js';
+import { glanceData, summaryData, readData } from './level-data.js';
 import { getUi } from '../../lib/i18n/index.js';
 import { extractPage } from '../extractor.js';
 import { computeStats } from '../readability-stats.js';
@@ -582,6 +583,34 @@ export default function Panel({ pageMeta, onClose }) {
     return () => { cancelled = true; };
   }, []);
 
+  // Silent snapshot upgrade: when this URL is saved and richer data has
+  // arrived (quizData ready, dive turn finished, …), merge it into the
+  // stored entry without prompting. Skips legacy cards (no `snapshot` key).
+  const lastUpgradeRef = useRef(null);
+  useEffect(() => {
+    if (!urlIsSaved) return;
+    const entry = deck.find((c) => c?.source?.url === pageMeta.url);
+    if (!entry?.snapshot) return;
+
+    const snapshot = {
+      data: data ?? null,
+      quizData: quizStatus === 'ready' ? (quizData ?? null) : null,
+      diveTurns:
+        diveStatus === 'ready' && diveTurns.length
+          ? diveTurns.map(({ _streaming, ...rest }) => rest)
+          : null,
+    };
+
+    const serialized = JSON.stringify(snapshot);
+    if (lastUpgradeRef.current === serialized) return;
+    if (JSON.stringify(entry.snapshot) === serialized) {
+      lastUpgradeRef.current = serialized;
+      return;
+    }
+    lastUpgradeRef.current = serialized;
+    updateInDeck(entry.id, (c) => ({ ...c, snapshot })).then(setDeck);
+  }, [urlIsSaved, data, quizData, quizStatus, diveTurns, diveStatus, deck, pageMeta.url]);
+
   // Restore persisted width + height + minimized on first mount.
   useEffect(() => {
     let cancelled = false;
@@ -720,52 +749,40 @@ export default function Panel({ pageMeta, onClose }) {
     openSettings();
   }
 
-  // Paywall upgrade CTA. For signed-in users, ask the SW to create a Stripe
-  // Checkout session and open it in a new tab — one click straight to
-  // payment, no detour through a marketing page. For anonymous users we
-  // fall through (return false) so PaywallCard's anchor handles it the
-  // old way: link to the static upgrade page where they can sign in.
+  // Paywall upgrade CTA. PaywallCard's anchor click handler decides
+  // synchronously whether to preventDefault using `canUpgrade` — must be
+  // sync, otherwise Chrome opens the static upgrade URL in a new tab
+  // before our async sendMessage completes, and the user gets two tabs.
+  // When canUpgrade is true the handler invokes onUpgrade as fire-and-forget
+  // and we surface failures via console.
+  const canUpgrade = settings?.hostedIsAnonymous === false;
   async function onUpgrade() {
-    if (settings?.hostedIsAnonymous !== false) return false;
     try {
       const res = await chrome.runtime.sendMessage({ type: 'depth:open-checkout' });
-      if (res?.ok) return true;
-      console.warn('[Depth panel] checkout failed:', res?.code, res?.message);
-      return false;
+      if (res && !res.ok) {
+        console.warn('[Depth panel] checkout failed:', res.code, res.message);
+      }
     } catch (e) {
       console.warn('[Depth panel] open-checkout sendMessage threw:', e?.message);
-      return false;
     }
+  }
+
+  function buildSnapshot() {
+    return {
+      data: data ?? null,
+      quizData: quizStatus === 'ready' ? (quizData ?? null) : null,
+      diveTurns:
+        diveStatus === 'ready' && diveTurns.length
+          ? diveTurns.map(({ _streaming, ...rest }) => rest)
+          : null,
+    };
   }
 
   async function onSave() {
     if (urlIsSaved) return;
-    if (!data) return;
+    if (!data?.glance && !data?.summary && !data?.read) return;
     const source = { title: pageMeta.title, url: pageMeta.url, savedAt: Date.now() };
-    if (level === 1 && data.glance?.sentence) {
-      await addToDeck({ type: 'quote', front: data.glance.sentence, back: pageMeta.title, source });
-    } else if (level === 2 && data.summary?.bullets?.length) {
-      await addToDeck({ type: 'bullet', front: data.summary.bullets.join('\n• '), back: pageMeta.title, source });
-    } else if (level === 3 && data.keyTerms?.length) {
-      const front = data.keyTerms.map((t) => t.label).join(', ');
-      const back = data.keyTerms.map((t) => `${t.label}: ${t.definition}`).join('\n');
-      await addToDeck({ type: 'term', front, back, source });
-    } else if (level === 4 && quizData?.questions?.[quizIndex]) {
-      const q = quizData.questions[quizIndex];
-      const front = q.prompt;
-      const back = `${['A', 'B', 'C', 'D'][q.correctIndex]}. ${q.choices[q.correctIndex]}\n\n${q.explanation}`;
-      await addToDeck({ type: 'qa', front, back, source });
-    } else if (level === 5 && diveTurns.length >= 2) {
-      const lastUser = [...diveTurns].reverse().find((t) => t.role === 'user');
-      const lastAssist = [...diveTurns].reverse().find((t) => t.role === 'assistant' && t.content);
-      if (lastUser && lastAssist) {
-        await addToDeck({ type: 'dialog', front: lastAssist.content, back: lastUser.content, source });
-      } else {
-        return;
-      }
-    } else {
-      return;
-    }
+    await addToDeck({ source, snapshot: buildSnapshot() });
     setDeck(await getDeck());
   }
 
@@ -927,6 +944,7 @@ export default function Panel({ pageMeta, onClose }) {
                 error={error}
                 onUseOwnKey={onUseOwnKey}
                 onUpgrade={onUpgrade}
+                canUpgrade={canUpgrade}
                 ui={ui}
               />
             )}
@@ -1062,7 +1080,7 @@ function ContentSwitch({
     }
     if (level === 3) {
       return data?.read?.sections?.length
-        ? <ReadView data={readData(data, stats, extracted)} ui={ui} />
+        ? <ReadView data={readData(data, stats, extracted?.text)} ui={ui} />
         : <LoadingSkeleton message={ui.structuring} />;
     }
   }
@@ -1111,43 +1129,3 @@ function localizeLevels(ui) {
   }));
 }
 
-function glanceData(d) {
-  return {
-    glance: d.glance?.sentence ?? '',
-    confidence: d.glance?.confidence ?? 'medium',
-    termCount: d.keyTerms?.length ?? 0,
-    highlightedIndex: countTermRefs(d.glance?.sentence),
-    terms: d.keyTerms ?? [],
-    sectionsUsed: d.read?.sections?.length ?? 0,
-  };
-}
-
-function summaryData(d) {
-  return {
-    bullets: d.summary?.bullets ?? [],
-    terms: d.keyTerms ?? [],
-  };
-}
-
-function readData(d, stats, extracted) {
-  const base = stats ?? { scale: '—' };
-  const originalLen = extracted?.text?.length ?? 0;
-  const readLen = (d.read?.sections ?? []).reduce(
-    (sum, s) => sum + (s.paragraphs ?? []).reduce((ss, p) => ss + (p?.length ?? 0), 0),
-    0,
-  );
-  const trimmed =
-    originalLen > 0 && readLen > 0
-      ? `~${Math.max(0, Math.round((1 - readLen / originalLen) * 100))}%`
-      : '—';
-  return {
-    stats: { scale: base.scale, trimmed, terms: d.keyTerms?.length ?? 0 },
-    sections: d.read?.sections ?? [],
-    terms: d.keyTerms ?? [],
-  };
-}
-
-function countTermRefs(text) {
-  if (!text) return 0;
-  return (text.match(/\[\[term:/g) ?? []).length;
-}

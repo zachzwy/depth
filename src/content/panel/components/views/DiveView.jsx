@@ -10,6 +10,7 @@ export default function DiveView({
   onInputChange,
   onSend,
   onRestart,
+  readOnly = false,
   ui,
 }) {
   const streamRef = useRef(null);
@@ -20,8 +21,11 @@ export default function DiveView({
   }, [turns]);
 
   if (status === 'error') return <ErrorState error={error} onRetry={onRestart} ui={ui} />;
-  if (turns.length === 0 && status !== 'streaming') {
+  if (!readOnly && turns.length === 0 && status !== 'streaming') {
     return <LoadingSkeleton message={ui.openingDive} />;
+  }
+  if (readOnly && turns.length === 0) {
+    return <p class="deck-view__placeholder">{ui.diveNotCaptured ?? 'No Dive turns captured.'}</p>;
   }
 
   const last = turns[turns.length - 1];
@@ -50,7 +54,7 @@ export default function DiveView({
           </div>
         ))}
 
-        {canShowChips && (
+        {!readOnly && canShowChips && (
           <div class="dive__chips">
             {last.suggestedReplies.map((r, i) => (
               <button
@@ -67,27 +71,29 @@ export default function DiveView({
         )}
       </div>
 
-      <form class="dive__inputbar" onSubmit={submit}>
-        <input
-          type="text"
-          class="dive__input"
-          placeholder={isStreaming ? ui.thinking : ui.divePlaceholder}
-          value={input ?? ''}
-          onInput={(e) => onInputChange(e.currentTarget.value)}
-          disabled={isStreaming}
-        />
-        <button
-          type="submit"
-          class="dive__send"
-          aria-label={ui.send}
-          disabled={isStreaming || !input?.trim()}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="22" y1="2" x2="11" y2="13" />
-            <polygon points="22 2 15 22 11 13 2 9 22 2" />
-          </svg>
-        </button>
-      </form>
+      {!readOnly && (
+        <form class="dive__inputbar" onSubmit={submit}>
+          <input
+            type="text"
+            class="dive__input"
+            placeholder={isStreaming ? ui.thinking : ui.divePlaceholder}
+            value={input ?? ''}
+            onInput={(e) => onInputChange(e.currentTarget.value)}
+            disabled={isStreaming}
+          />
+          <button
+            type="submit"
+            class="dive__send"
+            aria-label={ui.send}
+            disabled={isStreaming || !input?.trim()}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+          </button>
+        </form>
+      )}
     </div>
   );
 }
