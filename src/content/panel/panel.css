@@ -768,6 +768,17 @@
   text-decoration: underline dotted;
 }
 
+.state__footnote {
+  margin: -8px 0 0;
+  color: var(--text-3);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.state--paywall .state__cta {
+  text-decoration: none;
+}
+
 .state__payload {
   margin: 0;
   padding: 10px 12px;

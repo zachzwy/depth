@@ -27,6 +27,7 @@ import SetupView from './components/SetupView.jsx';
 import ConsentModal from './components/ConsentModal.jsx';
 import LoadingSkeleton from './components/LoadingSkeleton.jsx';
 import ErrorState from './components/ErrorState.jsx';
+import PaywallCard from './components/PaywallCard.jsx';
 import StaleBanner from './components/StaleBanner.jsx';
 import UnsupportedCard from './components/UnsupportedCard.jsx';
 import ExtractionStats from './components/ExtractionStats.jsx';
@@ -88,7 +89,7 @@ export default function Panel({ pageMeta, onClose }) {
         setData(msg.data);
         setStatus('ready');
       } else if (msg.type === 'error') {
-        setError({ code: msg.code, message: msg.message });
+        setError({ code: msg.code, message: msg.message, upgradeUrl: msg.upgradeUrl });
         setStatus(msg.code === 'NO_API_KEY' ? 'needs-key' : 'error');
       }
     });
@@ -167,7 +168,9 @@ export default function Panel({ pageMeta, onClose }) {
         !changes.apiKey &&
         !changes.providerId &&
         !changes.model &&
-        !changes.preferredLanguage
+        !changes.preferredLanguage &&
+        !changes.providerMode &&
+        !changes.hostedBaseUrl
       ) {
         return;
       }
@@ -519,6 +522,16 @@ export default function Panel({ pageMeta, onClose }) {
     }
   }
 
+  // Paywall escape valve: flip to BYOK and open settings. onSettingsChange
+  // (above) will pick up the providerMode flip and re-route the panel into
+  // needs-key/needs-consent as appropriate so the user lands on the right
+  // next step.
+  async function onUseOwnKey() {
+    disconnectGenerationPorts();
+    await setSettings({ providerMode: 'custom' });
+    openSettings();
+  }
+
   async function onSave() {
     if (!data) return;
     const source = { title: pageMeta.title, url: pageMeta.url, savedAt: Date.now() };
@@ -649,7 +662,12 @@ export default function Panel({ pageMeta, onClose }) {
         {status === 'unsupported' && (
           <UnsupportedCard extracted={extracted} onTryAnyway={onTryAnyway} ui={ui} />
         )}
-        {status === 'error' && <ErrorState error={error} onRetry={init} ui={ui} />}
+        {status === 'error' && error?.code === 'LIMIT_REACHED' && (
+          <PaywallCard error={error} onUseOwnKey={onUseOwnKey} ui={ui} />
+        )}
+        {status === 'error' && error?.code !== 'LIMIT_REACHED' && (
+          <ErrorState error={error} onRetry={init} ui={ui} />
+        )}
 
         {(status === 'generating' || status === 'ready' || status === 'init') && (
           <>
