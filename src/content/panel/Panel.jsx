@@ -28,6 +28,8 @@ import ConsentModal from './components/ConsentModal.jsx';
 import LoadingSkeleton from './components/LoadingSkeleton.jsx';
 import ErrorState from './components/ErrorState.jsx';
 import StaleBanner from './components/StaleBanner.jsx';
+import UnsupportedCard from './components/UnsupportedCard.jsx';
+import ExtractionStats from './components/ExtractionStats.jsx';
 
 export default function Panel({ pageMeta, onClose }) {
   // Levels 1-3 state
@@ -45,6 +47,9 @@ export default function Panel({ pageMeta, onClose }) {
   const [staleUrl, setStaleUrl] = useState(null);
   const [sessionLoaded, setSessionLoaded] = useState(false);
   const generatedForUrl = useRef(null);
+  // User opt-in to bypass the unsupported-page refusal. Reset on regenerate
+  // and on URL change so the gate fires again on each new page.
+  const [bypassClassification, setBypassClassification] = useState(false);
 
   // Drag-to-reposition
   const panelRef = useRef(null);
@@ -106,12 +111,20 @@ export default function Panel({ pageMeta, onClose }) {
     // Extract first so the consent modal (and any future view) has content
     // to render even if the user has just saved settings for the first time.
     const ext = extractPage();
-    if (!ext) {
+    setExtracted(ext);
+
+    // Refuse non-article pages before any network setup. No port opened,
+    // no consent fired — nothing leaves the browser on unsupported surfaces.
+    if (ext.classification.kind !== 'article' && !bypassClassification) {
+      setStatus('unsupported');
+      return;
+    }
+
+    if (!ext.text) {
       setError({ code: 'NO_CONTENT' });
       setStatus('error');
       return;
     }
-    setExtracted(ext);
     setStats(computeStats(ext.text));
 
     if (!isGenerationConfigured(settings)) {
@@ -137,7 +150,7 @@ export default function Panel({ pageMeta, onClose }) {
     generatedForUrl.current = pageMeta.url;
     setStaleUrl(null);
     startGeneration(ext);
-  }, [startGeneration, pageMeta.url]);
+  }, [startGeneration, pageMeta.url, bypassClassification]);
 
   useEffect(() => {
     init();
@@ -414,6 +427,14 @@ export default function Panel({ pageMeta, onClose }) {
     setExtracted(null);
     setStats(null);
     setStaleUrl(null);
+    // URL changed — re-evaluate classification from scratch.
+    setBypassClassification(false);
+    setStatus('init');
+    init();
+  }
+
+  function onTryAnyway() {
+    setBypassClassification(true);
     setStatus('init');
     init();
   }
@@ -424,12 +445,16 @@ export default function Panel({ pageMeta, onClose }) {
     setStaleUrl(null);
     await clearSession(pageMeta.url);
     const ext = extractPage();
-    if (!ext) {
+    setExtracted(ext);
+    if (ext.classification.kind !== 'article' && !bypassClassification) {
+      setStatus('unsupported');
+      return;
+    }
+    if (!ext.text) {
       setError({ code: 'NO_CONTENT' });
       setStatus('error');
       return;
     }
-    setExtracted(ext);
     setStats(computeStats(ext.text));
     const currentSettings = await getSettings();
     setSettingsState(currentSettings);
@@ -621,10 +646,14 @@ export default function Panel({ pageMeta, onClose }) {
             ui={ui}
           />
         )}
+        {status === 'unsupported' && (
+          <UnsupportedCard extracted={extracted} onTryAnyway={onTryAnyway} ui={ui} />
+        )}
         {status === 'error' && <ErrorState error={error} onRetry={init} ui={ui} />}
 
         {(status === 'generating' || status === 'ready' || status === 'init') && (
           <>
+            {extracted && <ExtractionStats extracted={extracted} ui={ui} />}
             <LevelTabPill level={current} metaOverride={pillMeta} />
             <ContentSwitch
               level={level}

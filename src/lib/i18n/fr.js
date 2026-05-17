@@ -88,4 +88,22 @@ export const fr = {
   },
   quizProgress: (shown, total) => `Question ${shown} sur ${total}`,
   done: 'Terminé',
+  extractedWords: (n) => `${n.toLocaleString('fr-FR')} mots`,
+  extractKind: {
+    article: 'article',
+    feed: 'fil',
+    discussion: 'fil de commentaires',
+    unsupported: 'aucun article',
+  },
+  unsupportedTitle: {
+    feed: 'On dirait un fil d’actualité',
+    discussion: 'On dirait un fil de commentaires',
+    unsupported: 'Aucun article trouvé',
+  },
+  unsupportedBody: {
+    feed: 'Depth fonctionne mieux sur des articles individuels — essaie d’ouvrir une seule publication.',
+    discussion: 'Pour l’instant Depth résume uniquement la publication d’origine ; les commentaires ne sont pas pris en charge.',
+    unsupported: 'Depth fonctionne mieux sur des textes longs.',
+  },
+  tryAnyway: 'Essayer quand même',
 };

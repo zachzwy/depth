@@ -88,4 +88,22 @@ export const zhHant = {
   },
   quizProgress: (shown, total) => `第 ${shown} / ${total} 題`,
   done: '完成',
+  extractedWords: (n) => `${n.toLocaleString('zh-TW')} 詞`,
+  extractKind: {
+    article: '文章',
+    feed: '資訊流',
+    discussion: '評論討論',
+    unsupported: '找不到文章',
+  },
+  unsupportedTitle: {
+    feed: '這看起來是一個資訊流',
+    discussion: '這看起來是一個評論討論頁',
+    unsupported: '在此頁面找不到文章',
+  },
+  unsupportedBody: {
+    feed: 'Depth 更適合閱讀單篇文章 —— 試著打開某一則具體的貼文。',
+    discussion: '目前 Depth 只摘要原文內容，留言尚未支援。',
+    unsupported: 'Depth 更適合長篇閱讀內容。',
+  },
+  tryAnyway: '仍然嘗試',
 };

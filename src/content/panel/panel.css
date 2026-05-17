@@ -783,6 +783,33 @@
   word-break: break-word;
 }
 
+/* ----- extraction stats ----- */
+
+.extraction-stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.extraction-stats__sep {
+  opacity: 0.5;
+}
+
+.extraction-stats__kind {
+  color: var(--text-2);
+}
+
+.extraction-stats__kind--feed,
+.extraction-stats__kind--discussion,
+.extraction-stats__kind--unsupported {
+  color: var(--accent);
+}
+
 /* ----- stale-url banner ----- */
 
 .stale-banner {
