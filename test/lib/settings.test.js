@@ -97,13 +97,22 @@ describe('isGenerationConfigured', () => {
     ).toBe(true);
   });
 
-  it('rejects the hosted provider mode regardless of credentials', () => {
+  it('accepts hosted mode when a hostedBaseUrl is set', () => {
     expect(
       isGenerationConfigured({
         ...DEFAULTS,
         providerMode: 'hosted',
-        apiKey: 'sk-test',
-        model: 'whatever',
+        hostedBaseUrl: 'http://localhost:54321/functions/v1',
+      }),
+    ).toBe(true);
+  });
+
+  it('rejects hosted mode if hostedBaseUrl is blank', () => {
+    expect(
+      isGenerationConfigured({
+        ...DEFAULTS,
+        providerMode: 'hosted',
+        hostedBaseUrl: '',
       }),
     ).toBe(false);
   });

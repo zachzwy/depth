@@ -1,4 +1,5 @@
 import { streamMessage } from './api.js';
+import { streamHosted, HostedError } from './hosted-client.js';
 import contentScriptPath from '../content/content-script.js?script';
 import { getCached, setCached, clearCached } from './cache.js';
 import { getSettings, isGenerationConfigured, providerFingerprint, hasConsentedToProvider } from '../lib/settings.js';
@@ -178,6 +179,25 @@ function handleGenerate(port) {
       }
 
       safePost(port, { type: 'started', hash });
+
+      if (settings.providerMode === 'hosted') {
+        const { data } = await streamHosted({
+          kind: 'generate',
+          settings,
+          body: { title, url, text, preferredLanguage: settings.preferredLanguage },
+          signal: controller.signal,
+          onPartial: (data) => {
+            if (getAborted()) return;
+            safePost(port, { type: 'partial', data });
+          },
+        });
+        if (!getAborted() && data) {
+          await setCached(hash, data, '1-3');
+          safePost(port, { type: 'done', data, hash });
+        }
+        return;
+      }
+
       let lastData = null;
       const fullText = await streamMessage({
         settings,
@@ -214,9 +234,17 @@ function handleGenerate(port) {
       }
     } catch (err) {
       console.warn('[Depth] handleGenerate error:', err?.message);
-      if (!getAborted()) {
-        safePost(port, { type: 'error', code: 'API_ERROR', message: publicApiErrorMessage(err) });
+      if (getAborted()) return;
+      if (err instanceof HostedError) {
+        safePost(port, {
+          type: 'error',
+          code: err.code,
+          message: err.message,
+          upgradeUrl: err.upgradeUrl,
+        });
+        return;
       }
+      safePost(port, { type: 'error', code: 'API_ERROR', message: publicApiErrorMessage(err) });
     }
   });
 }

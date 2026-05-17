@@ -191,6 +191,11 @@ export const PROVIDERS = {
   },
 };
 
+// Default Depth Hosted endpoint. Points at the local Supabase Edge Functions
+// runtime in dev. Production builds will override via build-time replacement
+// once the production URL is real.
+export const DEFAULT_HOSTED_BASE_URL = 'http://localhost:54321/functions/v1';
+
 export const DEFAULTS = {
   providerMode: 'custom',
   providerId: 'openrouter',
@@ -199,6 +204,7 @@ export const DEFAULTS = {
   preferredLanguage: 'English',
   consented: false,
   consentedProviderFingerprint: '',
+  hostedBaseUrl: DEFAULT_HOSTED_BASE_URL,
 };
 
 const STORAGE_AREA = 'local';
@@ -234,7 +240,12 @@ export function onSettingsChange(callback) {
 }
 
 export function isGenerationConfigured(settings) {
-  if (settings.providerMode === 'hosted') return false;
+  if (settings.providerMode === 'hosted') {
+    // Phase 1: hosted is configured as soon as a base URL is set. Quota
+    // enforcement happens server-side; the extension just needs somewhere to
+    // POST to. Phase 3 will additionally require an install token.
+    return Boolean(settings.hostedBaseUrl?.trim());
+  }
   const provider = getProvider(settings);
   if (!provider) return false;
   if (!settings.model?.trim()) return false;
@@ -243,6 +254,14 @@ export function isGenerationConfigured(settings) {
 }
 
 export function providerFingerprint(settings) {
+  if (settings.providerMode === 'hosted') {
+    // Stable across server-side model/prompt rotation — only language and
+    // the hostedBaseUrl change the fingerprint, so users aren't re-prompted
+    // for consent every time we rotate the backend model.
+    return ['hosted', settings.hostedBaseUrl, normalizeLanguage(settings.preferredLanguage)]
+      .filter(Boolean)
+      .join('|');
+  }
   const provider = getProvider(settings);
   return [
     settings.providerMode,
