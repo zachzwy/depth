@@ -139,11 +139,34 @@ export default function Panel({ pageMeta, onClose }) {
   useEffect(() => {
     return onSettingsChange((changes) => {
       if (
-        status === 'needs-key' &&
-        (changes.apiKey || changes.providerId || changes.model)
+        !changes.apiKey &&
+        !changes.providerId &&
+        !changes.model
       ) {
-        init();
+        return;
       }
+
+      (async () => {
+        const nextSettings = await getSettings();
+        setSettingsState(nextSettings);
+
+        if (!isGenerationConfigured(nextSettings)) {
+          disconnectGenerationPorts();
+          setStatus('needs-key');
+          return;
+        }
+
+        if (!hasConsentedToProvider(nextSettings)) {
+          disconnectGenerationPorts();
+          clearGeneratedState();
+          setStatus('needs-consent');
+          return;
+        }
+
+        if (status === 'needs-key' || status === 'needs-consent') {
+          init();
+        }
+      })();
     });
   }, [status, init]);
 
@@ -339,6 +362,24 @@ export default function Panel({ pageMeta, onClose }) {
   }
 
   // ----- Other handlers -----
+  function disconnectGenerationPorts() {
+    portRef.current?.disconnect();
+    quizPortRef.current?.disconnect();
+    divePortRef.current?.disconnect();
+  }
+
+  function clearGeneratedState() {
+    setData(null);
+    setQuizData(null);
+    setQuizStatus('idle');
+    setQuizIndex(0);
+    setQuizAnswers({});
+    setDiveTurns([]);
+    setDiveStatus('idle');
+    setDiveInput('');
+    setError(null);
+  }
+
   async function onConsent() {
     if (!settings) return;
     const nextSettings = {
@@ -355,37 +396,18 @@ export default function Panel({ pageMeta, onClose }) {
   }
 
   function onReloadStale() {
-    portRef.current?.disconnect();
-    quizPortRef.current?.disconnect();
-    divePortRef.current?.disconnect();
-    setData(null);
+    disconnectGenerationPorts();
+    clearGeneratedState();
     setExtracted(null);
     setStats(null);
-    setError(null);
     setStaleUrl(null);
-    setQuizData(null);
-    setQuizStatus('idle');
-    setQuizIndex(0);
-    setQuizAnswers({});
-    setDiveTurns([]);
-    setDiveStatus('idle');
     setStatus('init');
     init();
   }
 
   async function onRegenerate() {
-    portRef.current?.disconnect();
-    quizPortRef.current?.disconnect();
-    divePortRef.current?.disconnect();
-    setData(null);
-    setQuizData(null);
-    setQuizStatus('idle');
-    setQuizIndex(0);
-    setQuizAnswers({});
-    setDiveTurns([]);
-    setDiveStatus('idle');
-    setDiveInput('');
-    setError(null);
+    disconnectGenerationPorts();
+    clearGeneratedState();
     setStaleUrl(null);
     await clearSession(pageMeta.url);
     const ext = extractPage();
