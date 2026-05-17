@@ -2,6 +2,7 @@ import { streamMessage } from './api.js';
 import { streamHosted, HostedError } from './hosted-client.js';
 import { ensureHostedSession } from './hosted-auth.js';
 import { openCheckout, BillingError } from './billing.js';
+import { publicApiErrorMessage, shuffle, stripJsonWrapper, makeAbort } from './helpers.js';
 import contentScriptPath from '../content/content-script.js?script';
 import { getCached, setCached, clearCached } from './cache.js';
 import { getSettings, isGenerationConfigured, providerFingerprint, hasConsentedToProvider } from '../lib/settings.js';
@@ -131,46 +132,8 @@ function safePost(port, msg) {
   }
 }
 
-function publicApiErrorMessage(err) {
-  const message = String(err?.message ?? '');
-  if (message.startsWith('Model provider')) return message;
-  if (message.startsWith('Permission for ')) return message;
-  if (message.includes('Missing API key') || message.includes('Missing model')) return message;
-  return 'The model provider request failed. Check your provider settings, API key, quota, and model name.';
-}
-
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-function stripJsonWrapper(text) {
-  if (!text) return text;
-  let s = text.trim();
-  // Strip ```json ... ``` or ``` ... ``` fences
-  s = s.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '');
-  // Find first { and last } as a last resort
-  const first = s.indexOf('{');
-  const last = s.lastIndexOf('}');
-  if (first !== -1 && last !== -1 && last > first) {
-    s = s.slice(first, last + 1);
-  }
-  return s.trim();
-}
-
-function makeAbort(port) {
-  const controller = new AbortController();
-  let aborted = false;
-  port.onDisconnect.addListener(() => {
-    aborted = true;
-    controller.abort();
-  });
-  return { controller, getAborted: () => aborted };
-}
+// Pure helpers (publicApiErrorMessage, shuffle, stripJsonWrapper, makeAbort)
+// live in ./helpers.js and are imported above.
 
 // ----- Levels 1–3: combined call, cached -----
 function handleGenerate(port) {

@@ -87,6 +87,21 @@ describe('buildSystemDive', () => {
     expect(sys).toContain('- point a');
     expect(sys).toContain('- point b');
   });
+
+  it('handles missing glance and bullets gracefully', () => {
+    const sys = buildSystemDive({
+      title: 'T',
+      summary: {},
+      preferredLanguage: 'English',
+    });
+    // No throws, and the central-claim line is still present (empty).
+    expect(sys).toContain('Central claim:');
+  });
+
+  it('handles a completely missing summary object', () => {
+    const sys = buildSystemDive({ title: 'T', preferredLanguage: 'English' });
+    expect(sys).toContain('Central claim:');
+  });
 });
 
 describe('static system prompts', () => {
