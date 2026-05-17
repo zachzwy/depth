@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { PROVIDERS } from '../../src/lib/settings.js';
+import { DEFAULT_HOSTED_BASE_URL, PROVIDERS } from '../../src/lib/settings.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const HTML_PATH = resolve(__dirname, '../../src/options/options.html');
@@ -214,7 +214,7 @@ describe('options page hosted mode', () => {
 
     const stored = await chrome.storage.local.get(null);
     expect(stored.providerMode).toBe('hosted');
-    expect(stored.hostedBaseUrl).toBe('http://localhost:54321/functions/v1');
+    expect(stored.hostedBaseUrl).toBe(DEFAULT_HOSTED_BASE_URL);
     expect(stored.consented).toBe(false);
     expect(stored.consentedProviderFingerprint).toBe('');
     expect(document.getElementById('saved-flag').hidden).toBe(false);

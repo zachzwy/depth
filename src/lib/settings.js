@@ -191,17 +191,15 @@ export const PROVIDERS = {
   },
 };
 
-// Default Depth Hosted endpoint. Points at the local Supabase Edge Functions
-// runtime in dev. Production builds will override via build-time replacement
-// once the production URL is real.
-export const DEFAULT_HOSTED_BASE_URL = 'http://localhost:54321/functions/v1';
+// Default Depth Hosted endpoint. Use the linked production Supabase project
+// for packaged/dev builds so OAuth opens a public auth URL instead of local
+// Supabase. For local-only testing, override these values in extension storage.
+export const DEFAULT_HOSTED_BASE_URL = 'https://nyducfbgsvbhyazfnysh.supabase.co/functions/v1';
 
-// Local-supabase publishable key (printed by `supabase status`). Required as
-// the `apikey` header on every /auth/v1 call. Per-instance value — when this
-// extension talks to a *different* local Supabase, override via the options
-// page (the production build will inject the prod key at build time).
+// Production Supabase publishable key. Required as the `apikey` header on
+// every /auth/v1 call.
 export const DEFAULT_HOSTED_ANON_KEY =
-  'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH';
+  'sb_publishable_4lzg-NNYPLLjG_EgyaBBDg_zKVgFuWn';
 
 export const DEFAULTS = {
   providerMode: 'custom',

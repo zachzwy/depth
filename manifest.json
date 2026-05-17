@@ -16,6 +16,7 @@
     "https://api.groq.com/openai/v1/*",
     "https://api.mistral.ai/v1/*",
     "https://api.x.ai/v1/*",
+    "https://nyducfbgsvbhyazfnysh.supabase.co/*",
     "http://localhost:11434/v1/*",
     "http://localhost:54321/*"
   ],
