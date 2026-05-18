@@ -1,17 +1,19 @@
 const TERM_TOKEN = /\[\[term:(\d+)\]\]([^[]+)\[\[\/term\]\]|\[\[term:(\d+)\|([^\]]+)\]\]/g;
+const WIKI_LINK_TOKEN = /\[\[(?!term:\d+\|)([^\]|]+)\|([^\]]+)\]\]/g;
 
 export function renderWithTerms(text, terms) {
   if (!text) return null;
-  if (!terms || terms.length === 0) return text;
+  const cleaned = stripUnsupportedTermMarkup(text);
+  if (!terms || terms.length === 0) return cleaned;
 
   const out = [];
   let lastIndex = 0;
   let key = 0;
 
-  for (const match of text.matchAll(TERM_TOKEN)) {
+  for (const match of cleaned.matchAll(TERM_TOKEN)) {
     const start = match.index;
     if (start > lastIndex) {
-      out.push(text.slice(lastIndex, start));
+      out.push(cleaned.slice(lastIndex, start));
     }
     const slot = Number(match[1] ?? match[3]);
     const label = match[2] ?? match[4];
@@ -29,11 +31,15 @@ export function renderWithTerms(text, terms) {
     lastIndex = start + match[0].length;
   }
 
-  if (lastIndex < text.length) {
-    out.push(text.slice(lastIndex));
+  if (lastIndex < cleaned.length) {
+    out.push(cleaned.slice(lastIndex));
   }
 
   return out;
+}
+
+export function stripUnsupportedTermMarkup(text) {
+  return text.replace(WIKI_LINK_TOKEN, '$2');
 }
 
 export default function TermHighlight({ text, terms }) {

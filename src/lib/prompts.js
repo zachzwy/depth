@@ -35,6 +35,7 @@ Output a single JSON object matching the schema below. No preamble, no markdown 
 Rules:
 - Identify 4–8 key terms — concepts the reader needs to follow the piece.
 - Reference key terms in glance.sentence, summary.bullets, and read.paragraphs with [[term:N|label]] tokens, where N is the 0-based index into keyTerms and label is the exact text to display.
+- Never use wiki-link syntax like [[Transformer|Transformer]] or [[self-attention|self-attention]]. If you mark a term, it MUST use [[term:N|label]] with a valid keyTerms index.
 - Use the SAME key term across all levels — never invent new ones for summary/read that aren't in keyTerms.
 - Confidence: "high" if your glance sentence is directly stated in the article body; "medium" if synthesized across paragraphs; "low" if inferred beyond what's written.
 - Evidence: must be an exact substring of the article. If you cannot find one, downgrade confidence to "low" and put an empty string.
