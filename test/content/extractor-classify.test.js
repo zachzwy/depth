@@ -62,6 +62,20 @@ describe('classifyByUrl', () => {
 });
 
 describe('extractPage fallback containers', () => {
+  it('marks PDF URLs for background extraction before article fallback', () => {
+    history.pushState(null, '', '/paper.pdf');
+    document.title = '1706.03762';
+    document.body.innerHTML = '<main><h1>Attention Is All You Need</h1></main>';
+
+    const extracted = extractPage();
+
+    expect(extracted.classification).toEqual({
+      kind: 'pdf',
+      reason: 'needs-background-extraction',
+    });
+    expect(extracted.text).toBe('');
+  });
+
   it('extracts Mintlify-style docs content without semantic article wrappers', () => {
     history.pushState(null, '', '/oss/python/langchain/multi-agent/index');
     document.title = 'Multi-agent - Docs by LangChain';

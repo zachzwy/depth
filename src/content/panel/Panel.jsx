@@ -156,13 +156,39 @@ export default function Panel({ pageMeta, onClose }) {
     });
   }, [pageMeta.url]);
 
+  const resolveDocumentExtraction = useCallback(async (ext) => {
+    if (ext?.classification?.kind !== 'pdf') return ext;
+    setStatus('extracting');
+    try {
+      const res = await chrome.runtime.sendMessage({
+        type: 'depth:extract-document',
+        url: pageMeta.url,
+        title: ext.title || pageMeta.title,
+      });
+      if (!res?.ok || !res.extracted?.text) {
+        throw new Error(res?.message ?? 'Could not read this PDF.');
+      }
+      return res.extracted;
+    } catch (err) {
+      setError({
+        code: 'PDF_EXTRACT_FAILED',
+        message: err?.message ?? 'Could not read this PDF.',
+      });
+      setStatus('error');
+      return null;
+    }
+  }, [pageMeta.title, pageMeta.url]);
+
   const init = useCallback(async () => {
     const settings = await getSettings();
     setSettingsState(settings);
 
     // Extract first so the consent modal (and any future view) has content
     // to render even if the user has just saved settings for the first time.
-    const ext = extractPage();
+    const rawExt = extractPage();
+    setExtracted(rawExt);
+    const ext = await resolveDocumentExtraction(rawExt);
+    if (!ext) return;
     setExtracted(ext);
 
     // Refuse non-article pages before any network setup. No port opened,
@@ -202,7 +228,7 @@ export default function Panel({ pageMeta, onClose }) {
     generatedForUrl.current = pageMeta.url;
     setStaleUrl(null);
     startGeneration(ext);
-  }, [startGeneration, pageMeta.url, bypassClassification]);
+  }, [startGeneration, pageMeta.url, bypassClassification, resolveDocumentExtraction]);
 
   useEffect(() => {
     init();
@@ -498,7 +524,10 @@ export default function Panel({ pageMeta, onClose }) {
     clearGeneratedState();
     setStaleUrl(null);
     await clearSession(pageMeta.url);
-    const ext = extractPage();
+    const rawExt = extractPage();
+    setExtracted(rawExt);
+    const ext = await resolveDocumentExtraction(rawExt);
+    if (!ext) return;
     setExtracted(ext);
     if (ext.classification.kind !== 'article' && !bypassClassification) {
       setStatus('unsupported');
@@ -1026,6 +1055,12 @@ export default function Panel({ pageMeta, onClose }) {
             {status === 'unsupported' && (
               <UnsupportedCard extracted={extracted} onTryAnyway={onTryAnyway} ui={ui} />
             )}
+            {status === 'extracting' && (
+              <>
+                {extracted && <ExtractionStats extracted={extracted} ui={ui} />}
+                <LoadingSkeleton message={ui.readingDocument ?? 'Reading document...'} />
+              </>
+            )}
             {status === 'error' && error?.code === 'LIMIT_REACHED' && (
               <PaywallCard
                 error={error}
@@ -1233,4 +1268,3 @@ function localizeLevels(ui) {
     pillMeta: ui.levelMeta[l.id] ?? l.pillMeta,
   }));
 }
-

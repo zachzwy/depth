@@ -1,4 +1,5 @@
 import { Readability, isProbablyReaderable } from '@mozilla/readability';
+import { isPdfUrl } from '../lib/document-sources.js';
 
 const MIN_TEXT_LENGTH = 200;
 const MIN_FALLBACK_SCORE = 7;
@@ -8,6 +9,18 @@ const MAX_TEXT_LENGTH = 60000;
 
 export function extractPage() {
   const url = typeof location !== 'undefined' ? location.href : '';
+  if (isPdfUrl(url)) {
+    return {
+      title: typeof document !== 'undefined' ? document.title : '',
+      byline: null,
+      siteName: null,
+      text: '',
+      wordCount: 0,
+      truncated: false,
+      classification: { kind: 'pdf', reason: 'needs-background-extraction' },
+    };
+  }
+
   const urlVerdict = classifyByUrl(url);
   const extraction = tryReadability() ?? tryFallback();
 

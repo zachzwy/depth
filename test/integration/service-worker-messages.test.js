@@ -136,3 +136,38 @@ describe('depth:probe-quiz message handler', () => {
     expect(reply).toEqual({ cached: false });
   });
 });
+
+describe('depth:extract-document message handler', () => {
+  it('returns extracted arXiv HTML text before falling back to PDF bytes', async () => {
+    const body = `
+      <html>
+        <head><title>Attention Is All You Need</title></head>
+        <body>
+          <article>
+            <h1>Attention Is All You Need</h1>
+            <p>${'Transformers rely on attention mechanisms instead of recurrence. '.repeat(12)}</p>
+          </article>
+        </body>
+      </html>
+    `;
+    globalThis.fetch.mockResolvedValueOnce(
+      new Response(body, { status: 200, headers: { 'content-type': 'text/html' } }),
+    );
+
+    await importWorker();
+    const reply = await fireMessage({
+      type: 'depth:extract-document',
+      url: 'https://arxiv.org/pdf/1706.03762',
+      title: '1706.03762',
+    });
+
+    expect(reply.ok).toBe(true);
+    expect(reply.extracted.classification).toEqual({ kind: 'article', sourceType: 'pdf-html' });
+    expect(reply.extracted.sourceLabel).toBe('ar5iv HTML');
+    expect(reply.extracted.text).toContain('Transformers rely on attention mechanisms');
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://ar5iv.labs.arxiv.org/html/1706.03762',
+      expect.any(Object),
+    );
+  });
+});

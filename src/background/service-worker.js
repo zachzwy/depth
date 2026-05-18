@@ -2,6 +2,7 @@ import { streamMessage } from './api.js';
 import { streamHosted, HostedError } from './hosted-client.js';
 import { ensureHostedSession, completeHostedSignupWithCaptcha, signInWithGoogle } from './hosted-auth.js';
 import { openCheckout, BillingError } from './billing.js';
+import { extractPdfDocument } from './pdf.js';
 import { publicApiErrorMessage, shuffle, stripJsonWrapper, makeAbort } from './helpers.js';
 import contentScriptPath from '../content/content-script.js?script';
 import { getCached, setCached, clearCached } from './cache.js';
@@ -114,6 +115,25 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         sendResponse({ ok: true });
       } catch (err) {
         sendResponse({ ok: false, code: 'SIGN_IN_FAILED', message: err?.message ?? 'Sign-in failed' });
+      }
+    })();
+    return true;
+  }
+  if (msg?.type === 'depth:extract-document') {
+    (async () => {
+      try {
+        const extracted = await extractPdfDocument({
+          url: msg.url,
+          title: msg.title,
+        });
+        sendResponse({ ok: true, extracted });
+      } catch (err) {
+        console.warn('[Depth] document extraction failed:', err?.message);
+        sendResponse({
+          ok: false,
+          code: 'PDF_EXTRACT_FAILED',
+          message: err?.message ?? 'Could not read this PDF.',
+        });
       }
     })();
     return true;

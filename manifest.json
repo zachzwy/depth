@@ -17,6 +17,8 @@
     "https://api.mistral.ai/v1/*",
     "https://api.x.ai/v1/*",
     "https://nyducfbgsvbhyazfnysh.supabase.co/*",
+    "https://arxiv.org/*",
+    "https://ar5iv.labs.arxiv.org/*",
     "http://localhost:11434/v1/*",
     "http://localhost:54321/*"
   ],

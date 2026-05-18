@@ -6,8 +6,16 @@ export default function ExtractionStats({ extracted, ui }) {
       ? (ui.extractKind?.textNotArticle ?? ui.extractKind?.unsupported ?? kind)
       : (ui.extractKind?.[kind] ?? kind);
   const showWords = (extracted.wordCount ?? 0) > 0;
+  const pageCount = extracted.pageCount ?? extracted.pagesRead ?? 0;
+  const sourceLabel = extracted.sourceLabel;
   return (
     <div class="extraction-stats" aria-live="polite">
+      {pageCount > 0 && (
+        <>
+          <span class="extraction-stats__pages">{ui.extractedPages?.(pageCount) ?? `${pageCount} pages`}</span>
+          <span class="extraction-stats__sep">·</span>
+        </>
+      )}
       {showWords && (
         <>
           <span class="extraction-stats__words">{ui.extractedWords(extracted.wordCount)}</span>
@@ -15,6 +23,12 @@ export default function ExtractionStats({ extracted, ui }) {
         </>
       )}
       <span class={`extraction-stats__kind extraction-stats__kind--${kind}`}>{kindLabel}</span>
+      {sourceLabel && (
+        <>
+          <span class="extraction-stats__sep">·</span>
+          <span class="extraction-stats__source">{sourceLabel}</span>
+        </>
+      )}
     </div>
   );
 }
