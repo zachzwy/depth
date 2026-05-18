@@ -9,7 +9,12 @@
     <main class="page">
       <header class="page__head">
         <h1>Depth — Settings</h1>
-        <p class="page__sub">Connect a supported model provider. Settings stay on this browser.</p>
+        <p class="page__sub">
+          Connect a supported model provider. Settings stay on this browser.
+          Learn more at
+          <a href="https://depth.microfalls.com/" target="_blank" rel="noopener noreferrer">
+            depth.microfalls.com</a>.
+        </p>
       </header>
 
       <form id="settings-form" class="form">
@@ -66,20 +71,6 @@
                 Sign in with Google
               </button>
               <p class="account-card__error" id="signin-error" hidden></p>
-
-              <details class="account-card__setup">
-                <summary>Setup info</summary>
-                <p class="account-card__setup-hint">
-                  This extension's OAuth redirect URL. Allow-list this in
-                  Supabase → Authentication → URL Configuration → Redirect URLs.
-                </p>
-                <div class="account-card__copy-row">
-                  <code id="redirect-url" class="account-card__redirect"></code>
-                  <button type="button" id="copy-redirect-btn" class="btn btn--inline">
-                    Copy
-                  </button>
-                </div>
-              </details>
             </div>
 
             <div class="account-card__signed-in" id="account-signed-in" hidden>
@@ -173,6 +164,12 @@
           scrolling, and reading the page do not call any API.
         </p>
       </section>
+
+      <footer class="page__foot">
+        <a href="https://depth.microfalls.com/privacy/" target="_blank" rel="noopener noreferrer">Privacy</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://depth.microfalls.com/terms/" target="_blank" rel="noopener noreferrer">Terms</a>
+      </footer>
     </main>
     <script type="module" src="./options.js"></script>
   </body>

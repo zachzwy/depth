@@ -42,8 +42,6 @@ const accountUsage = document.getElementById('account-usage');
 const accountRenewal = document.getElementById('account-renewal');
 const signinGoogleBtn = document.getElementById('signin-google-btn');
 const signinError = document.getElementById('signin-error');
-const redirectUrlEl = document.getElementById('redirect-url');
-const copyRedirectBtn = document.getElementById('copy-redirect-btn');
 const upgradeBtn = document.getElementById('upgrade-btn');
 const portalBtn = document.getElementById('portal-btn');
 const signoutBtn = document.getElementById('signout-btn');
@@ -273,17 +271,6 @@ function renderAccount(settings, usageSnapshot) {
   setInlineError(signinError, '');
   setInlineError(billingError, '');
 
-  // The redirect URL is identity-determined, not session-determined — render
-  // it whenever the card paints. chrome.identity is gated on the `identity`
-  // manifest permission; if missing, we just leave the field blank.
-  if (redirectUrlEl) {
-    try {
-      redirectUrlEl.textContent = chrome.identity?.getRedirectURL?.() ?? '';
-    } catch {
-      redirectUrlEl.textContent = '';
-    }
-  }
-
   const hasSession = Boolean(settings.hostedAccessToken);
   const isSignedIn = hasSession && !settings.hostedIsAnonymous;
 
@@ -404,21 +391,6 @@ async function refreshAccountUI({ skipWhoami = false } = {}) {
     console.warn('[options] whoami refresh failed:', whoamiResult.reason);
   }
 }
-
-copyRedirectBtn?.addEventListener('click', async () => {
-  const text = redirectUrlEl?.textContent ?? '';
-  if (!text) return;
-  try {
-    await navigator.clipboard.writeText(text);
-    const original = copyRedirectBtn.textContent;
-    copyRedirectBtn.textContent = 'Copied';
-    setTimeout(() => {
-      copyRedirectBtn.textContent = original;
-    }, 1200);
-  } catch {
-    // Clipboard refused; user can long-press the code instead.
-  }
-});
 
 signinGoogleBtn.addEventListener('click', async () => {
   setInlineError(signinError, '');
