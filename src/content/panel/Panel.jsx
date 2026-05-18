@@ -10,7 +10,6 @@ import {
   getProvider,
 } from '../../lib/settings.js';
 import { getSession, saveSession, clearSession } from '../../lib/session.js';
-import { contentHash } from '../../lib/content-hash.js';
 import { addToDeck, getDeck, removeFromDeckByUrl, removeFromDeckById, updateInDeck } from '../../lib/deck.js';
 import { glanceData, summaryData, readData } from './level-data.js';
 import { getUi } from '../../lib/i18n/index.js';
@@ -939,15 +938,14 @@ export default function Panel({ pageMeta, onClose }) {
         summary: data?.summary ?? {},
         read: data?.read ?? {},
       };
-      const articleHash = await contentHash(
-        extracted?.title ?? pageMeta.title ?? '',
-        extracted?.text ?? '',
-      );
+      // We pass title + text to the SW and let it compute articleHash via
+      // crypto.subtle there — content-script context is missing crypto.subtle
+      // when the host page is http:// (only secure contexts get the API).
       const res = await chrome.runtime.sendMessage({
         type: 'depth:share-summary',
         url: pageMeta.url,
         title: extracted?.title ?? pageMeta.title ?? '',
-        articleHash,
+        text: extracted?.text ?? '',
         payload,
       });
       if (!res?.ok) {

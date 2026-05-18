@@ -79,7 +79,7 @@ describe('depth:share-summary handler', () => {
       type: 'depth:share-summary',
       url: 'https://example.com/a',
       title: 'A Test',
-      articleHash: 'h',
+      text: 'Article body text.',
       payload: PAYLOAD,
     });
 
@@ -96,6 +96,11 @@ describe('depth:share-summary handler', () => {
     expect(body.url).toBe('https://example.com/a');
     expect(body.title).toBe('A Test');
     expect(body.payload).toEqual(PAYLOAD);
+    // SW computes the articleHash from title + text; the panel never
+    // touches crypto.subtle. Validate the shape rather than the exact
+    // bytes — content-hash.js is covered by its own tests.
+    expect(typeof body.articleHash).toBe('string');
+    expect(body.articleHash.length).toBeGreaterThan(0);
 
     // After a successful first publish, settings.communityPublishConsentAt
     // should be set so the panel doesn't re-show the consent modal.
@@ -119,7 +124,7 @@ describe('depth:share-summary handler', () => {
       type: 'depth:share-summary',
       url: 'https://example.com/a',
       title: 'A Test',
-      articleHash: 'h',
+      text: 'Article body text.',
       payload: PAYLOAD,
     });
 
@@ -141,7 +146,7 @@ describe('depth:share-summary handler', () => {
       type: 'depth:share-summary',
       url: 'https://docs.google.com/document/d/abc',
       title: 'A Test',
-      articleHash: 'h',
+      text: 'Article body text.',
       payload: PAYLOAD,
     });
     expect(reply.ok).toBe(false);
@@ -163,7 +168,7 @@ describe('depth:share-summary handler', () => {
       type: 'depth:share-summary',
       url: 'https://example.com/b',
       title: 'B',
-      articleHash: 'h',
+      text: 'Article body text.',
       payload: PAYLOAD,
     });
     expect(reply.ok).toBe(false);

@@ -241,10 +241,16 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     // it to depth-api. On first success we stamp
     // settings.communityPublishConsentAt so the next publish doesn't
     // re-show the consent modal.
+    //
+    // We derive articleHash from the article text here rather than in
+    // the panel because crypto.subtle is gated to secure contexts —
+    // when the host page is http://, the content-script context has
+    // no crypto.subtle and the hash would throw.
     (async () => {
       try {
         const settings = await getSettings();
-        const { url, title, articleHash, payload } = msg;
+        const { url, title, text, payload } = msg;
+        const articleHash = await contentHash(title ?? '', text ?? '');
         const result = await hostedPublishSummary(settings, {
           url,
           title,
