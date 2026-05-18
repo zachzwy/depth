@@ -58,7 +58,7 @@ export const zhHant = {
   hostedPermissionAllow: '允許存取',
   hostedPermissionDenied: '權限未授予。你也可以從設定中啟用。',
   captchaTitle: '快速驗證',
-  captchaBody: 'Cloudflare 將進行一次性檢查，確認這是真實瀏覽器。通常為隱形。',
+  captchaBody: '我們將進行一次性檢查，確認這是真實瀏覽器。通常為隱形。',
   captchaVerify: '驗證',
   captchaFailed: '驗證失敗。請重試或開啟設定。',
   paywallTitle: '今日免費額度已用完',

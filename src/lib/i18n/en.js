@@ -55,7 +55,7 @@ export const en = {
   hostedPermissionAllow: 'Allow access',
   hostedPermissionDenied: 'Permission was not granted. You can also enable it from Settings.',
   captchaTitle: 'Quick verification',
-  captchaBody: 'Cloudflare will do a one-time check to confirm this is a real browser. Usually invisible.',
+  captchaBody: 'A one-time check confirms this is a real browser. Usually invisible.',
   captchaVerify: 'Verify',
   captchaFailed: 'Verification failed. Try again or open Settings.',
   paywallTitle: 'Daily free quota reached',

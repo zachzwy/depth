@@ -132,11 +132,30 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     // survives, then hand the token to completeHostedSignupWithCaptcha
     // which finishes the /signup call. On success the panel re-inits and
     // generation proceeds as if captcha was never in the way.
-    const captchaUrl = msg.captchaUrl;
-    if (!captchaUrl) {
-      sendResponse({ ok: false, code: 'BAD_REQUEST', message: 'No captcha URL' });
+    //
+    // The URL is built here (not in the panel) because chrome.identity
+    // isn't available in content-script contexts. We read hostedBaseUrl
+    // synchronously from a passed-in field if any, otherwise fall back
+    // to chrome.storage — but storage access consumes the gesture, so
+    // prefer passing it from the panel when possible.
+    const redirect = chrome.identity?.getRedirectURL?.();
+    if (!redirect) {
+      sendResponse({
+        ok: false,
+        code: 'CAPTCHA_FAILED',
+        message: 'chrome.identity unavailable — check the `identity` permission.',
+      });
       return;
     }
+    let baseUrl = (msg.hostedBaseUrl ?? '').replace(/\/+$/, '');
+    if (!baseUrl) {
+      // Fallback: read storage synchronously isn't possible, so the
+      // gesture-preserving path is to receive the base URL from the
+      // panel. The panel does pass it; this branch covers older callers.
+      sendResponse({ ok: false, code: 'BAD_REQUEST', message: 'No hosted base URL' });
+      return;
+    }
+    const captchaUrl = `${baseUrl}/captcha-page?redirect=${encodeURIComponent(redirect)}`;
     chrome.identity.launchWebAuthFlow(
       { url: captchaUrl, interactive: true },
       async (responseUrl) => {

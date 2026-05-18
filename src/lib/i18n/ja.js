@@ -58,7 +58,7 @@ export const ja = {
   hostedPermissionAllow: 'アクセスを許可',
   hostedPermissionDenied: '権限が許可されませんでした。設定画面からも有効化できます。',
   captchaTitle: '簡単な確認',
-  captchaBody: 'Cloudflare が実ブラウザであることを一度だけ確認します。通常は表示されません。',
+  captchaBody: '実ブラウザであることを一度だけ確認します。通常は表示されません。',
   captchaVerify: '確認する',
   captchaFailed: '確認に失敗しました。もう一度試すか、設定を開いてください。',
   paywallTitle: '本日の無料利用枠に達しました',

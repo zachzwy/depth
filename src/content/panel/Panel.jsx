@@ -790,34 +790,33 @@ export default function Panel({ pageMeta, onClose }) {
   }
 
   // Second-stage first-run gate. After permission is granted, the first
-  // hosted call may bounce with CAPTCHA_REQUIRED if Supabase Auth has
-  // Turnstile enabled. The SW handler owns the launchWebAuthFlow + retry
-  // signup; we just route the click through so the user-gesture survives.
+  // hosted call may bounce with CAPTCHA_REQUIRED if the hosted backend
+  // has captcha enabled. The SW handler owns the launchWebAuthFlow +
+  // retry signup; we just route the click through so the user-gesture
+  // survives. Returns null on success, or an error string the
+  // CaptchaCard renders in its footnote so the user sees what went wrong.
   async function onCompleteCaptcha() {
-    const baseUrl = (settings?.hostedBaseUrl ?? '').replace(/\/+$/, '');
-    if (!baseUrl) return false;
-    let captchaUrl;
-    try {
-      const redirect = chrome.identity?.getRedirectURL?.() ?? '';
-      if (!redirect) return false;
-      captchaUrl = `${baseUrl}/captcha-page?redirect=${encodeURIComponent(redirect)}`;
-    } catch {
-      return false;
-    }
+    // chrome.identity isn't available in content scripts; the SW
+    // does chrome.identity.getRedirectURL() itself. Panel passes
+    // hostedBaseUrl so the SW doesn't need an async storage read
+    // (which would consume the user-activation token).
+    const hostedBaseUrl = settings?.hostedBaseUrl ?? '';
     try {
       const res = await chrome.runtime.sendMessage({
         type: 'depth:complete-captcha',
-        captchaUrl,
+        hostedBaseUrl,
       });
       if (res?.ok) {
         setError(null);
         await init();
-        return true;
+        return null;
       }
-      return false;
+      const reason = res?.message ? `${res.code ?? 'CAPTCHA_FAILED'}: ${res.message}` : null;
+      console.warn('[Depth panel] complete-captcha failed:', reason);
+      return reason;
     } catch (e) {
-      console.warn('[Depth panel] complete-captcha failed:', e?.message);
-      return false;
+      console.warn('[Depth panel] complete-captcha sendMessage threw:', e?.message);
+      return e?.message || null;
     }
   }
 

@@ -16,8 +16,12 @@ export default function CaptchaCard({ onVerify, onOpenSettings, ui }) {
     setBusy(true);
     setFailed(null);
     try {
-      const ok = await onVerify();
-      if (!ok) setFailed(ui.captchaFailed);
+      // onVerify returns null on success, or an error string explaining
+      // what went wrong (so the user / debugger can see the SW response).
+      const reason = await onVerify();
+      if (reason !== null && reason !== undefined) {
+        setFailed(reason || ui.captchaFailed);
+      }
     } catch (e) {
       setFailed(e?.message || ui.captchaFailed);
     } finally {
