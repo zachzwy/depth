@@ -55,10 +55,7 @@ function tryReadability() {
 
 function tryFallback() {
   if (typeof document === 'undefined') return null;
-  const main =
-    document.querySelector('main') ||
-    document.querySelector('article') ||
-    document.querySelector('[role="main"]');
+  const main = findFallbackContainer();
   if (!main) return null;
   const fullText = main.innerText.trim();
   if (fullText.length < MIN_TEXT_LENGTH) return null;
@@ -71,6 +68,40 @@ function tryFallback() {
     wordCount: countWords(text),
     truncated: fullText.length > MAX_TEXT_LENGTH,
   };
+}
+
+function findFallbackContainer() {
+  const semantic =
+    document.querySelector('main') ||
+    document.querySelector('article') ||
+    document.querySelector('[role="main"]');
+  if (semantic) return semantic;
+
+  const selectors = [
+    '#content-area',
+    '#content-container',
+    '#body-content',
+    '[data-pagefind-body]',
+    '.prose',
+    '.markdown-body',
+  ];
+
+  for (const selector of selectors) {
+    const candidates = Array.from(document.querySelectorAll(selector))
+      .filter(isReadableContainer)
+      .sort((a, b) => a.innerText.length - b.innerText.length);
+    if (candidates[0]) return candidates[0];
+  }
+
+  return null;
+}
+
+function isReadableContainer(el) {
+  const text = el.innerText?.trim() ?? '';
+  if (text.length < MIN_TEXT_LENGTH) return false;
+  if (!el.querySelector('h1, h2, h3')) return false;
+  if (el.matches('nav, aside, footer, header')) return false;
+  return true;
 }
 
 // URL-only classification. Returns 'feed' | 'discussion' | null.

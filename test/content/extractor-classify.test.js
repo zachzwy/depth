@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { classifyByUrl } from '../../src/content/extractor.js';
+import { classifyByUrl, extractPage } from '../../src/content/extractor.js';
 
 describe('classifyByUrl', () => {
   it('returns null for ordinary article URLs', () => {
@@ -58,5 +58,37 @@ describe('classifyByUrl', () => {
 
   it('classifies Stack Overflow questions as discussion', () => {
     expect(classifyByUrl('https://stackoverflow.com/questions/12345/some-q')).toBe('discussion');
+  });
+});
+
+describe('extractPage fallback containers', () => {
+  it('extracts Mintlify-style docs content without semantic article wrappers', () => {
+    history.pushState(null, '', '/oss/python/langchain/multi-agent/index');
+    document.title = 'Multi-agent - Docs by LangChain';
+    document.body.innerHTML = `
+      <nav>Navigation Multi-agent Search</nav>
+      <div id="body-content">
+        <div id="content-container">
+          <div id="content-area">
+            <header id="header"><h1 id="page-title">Multi-agent</h1></header>
+            <div>
+              Multi-agent systems coordinate specialized components to tackle complex workflows.
+              Context management, distributed development, and parallelization are common reasons
+              to split work across subagents, handoffs, skills, routers, or custom workflows.
+              These patterns help developers choose the right architecture for latency, cost,
+              context isolation, and user interaction needs. ${'Additional documentation detail. '.repeat(12)}
+            </div>
+          </div>
+        </div>
+      </div>
+      <footer>Resources Company</footer>
+    `;
+
+    const extracted = extractPage();
+
+    expect(extracted.classification.kind).toBe('article');
+    expect(extracted.title).toBe('Multi-agent - Docs by LangChain');
+    expect(extracted.text).toContain('Multi-agent systems coordinate specialized components');
+    expect(extracted.text).not.toContain('Resources Company');
   });
 });
