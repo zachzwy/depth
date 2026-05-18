@@ -105,6 +105,8 @@ function findFallbackContainer() {
     ['[data-pagefind-body]', 3],
     ['.prose', 2],
     ['.markdown-body', 2],
+    ['body > span', 0],
+    ['body', 0],
   ];
   const seen = new Set();
   const candidates = [];
@@ -136,6 +138,7 @@ function scoreReadableContainer(el, selectorScore) {
 
   const wordCount = countWords(text);
   const blockCount = el.querySelectorAll('p, li, blockquote, pre, table').length;
+  const lineBreakCount = el.querySelectorAll('br').length;
   const headingCount = el.querySelectorAll('h1, h2, h3').length;
   const controlCount = el.querySelectorAll('button, input, select, textarea').length;
 
@@ -148,6 +151,8 @@ function scoreReadableContainer(el, selectorScore) {
   else if (headingCount > 0) score += 1;
   if (blockCount >= 3) score += 2;
   else if (blockCount > 0) score += 1;
+  if (lineBreakCount >= 6) score += 2;
+  else if (lineBreakCount >= 2) score += 1;
   if (el.querySelector('time, [datetime], [rel="author"], .byline')) score += 1;
 
   if (linkDensity > 0.35) score -= 4;

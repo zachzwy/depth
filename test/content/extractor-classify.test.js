@@ -142,6 +142,35 @@ describe('extractPage fallback containers', () => {
     expect(extracted.text).not.toContain('Resources Company');
   });
 
+  it('extracts old static essays with body-level headings and br paragraphs', () => {
+    history.pushState(null, '', '/IncIdeas/BitterLesson.html');
+    document.title = 'The Bitter Lesson';
+    document.body.innerHTML = `
+      <span class="style1">
+        <h1>The Bitter Lesson<br></h1>
+        <h2>Rich Sutton</h2>
+        <h3>March 13, 2019<br></h3>
+        The biggest lesson that can be read from 70 years of AI research is that
+        general methods that leverage computation are ultimately the most effective,
+        and by a large margin. ${'Researchers seek to leverage human knowledge, but the only thing that matters in the long run is the leveraging of computation. '.repeat(10)}
+        <br><br>
+        In computer chess, the methods that defeated the world champion were based
+        on massive, deep search. ${'Search and learning are general methods that use computation effectively. '.repeat(8)}
+        <br><br>
+        In speech recognition, statistical methods won out over human-knowledge-based
+        methods. ${'The pattern repeated as more computation became available. '.repeat(8)}
+        <br><br>
+      </span>
+    `;
+
+    const extracted = extractPage();
+
+    expect(extracted.classification.kind).toBe('article');
+    expect(extracted.title).toBe('The Bitter Lesson');
+    expect(extracted.text).toContain('The biggest lesson');
+    expect(extracted.text).toContain('In computer chess');
+  });
+
   it('marks text-heavy pages unsupported when the text is not article-shaped', () => {
     history.pushState(null, '', '/app/shell');
     document.title = 'Application Shell';
