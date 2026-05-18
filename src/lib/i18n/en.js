@@ -13,7 +13,7 @@ export const en = {
   shareDisabledLevel: 'Share is for Glance, Summary, and Read views.',
   shareConsentTitle: 'Publish to depth.microfalls.com/community?',
   shareConsentBody:
-    "Your Glance, Summary, and Read views will be public on depth.microfalls.com/community along with the article URL. Anyone can read it, and you can delete it later from Settings. The original article body is never published — only what Depth produced.",
+    "Your Glance, Summary, and Read views will be public on depth.microfalls.com/community along with the article URL. Anyone can read it, and you can delete it later from Settings. The original article body is never published — only what Depth produced. Publishing is anonymous — readers don't see who shared it.",
   shareConfirm: 'Publish',
   shareAlways: 'Always publish',
   shareSuccess: 'Published — link copied.',
