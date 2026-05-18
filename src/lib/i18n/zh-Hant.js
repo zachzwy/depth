@@ -130,16 +130,19 @@ export const zhHant = {
     feed: '資訊流',
     discussion: '評論討論',
     unsupported: '找不到文章',
+    textNotArticle: '找到頁面文字',
   },
   unsupportedTitle: {
     feed: '這看起來是一個資訊流',
     discussion: '這看起來是一個評論討論頁',
     unsupported: '在此頁面找不到文章',
+    textNotArticle: '找到了頁面文字，但它不像一篇文章',
   },
   unsupportedBody: {
     feed: 'Depth 更適合閱讀單篇文章 —— 試著打開某一則具體的貼文。',
     discussion: '目前 Depth 只摘要原文內容，留言尚未支援。',
     unsupported: 'Depth 更適合長篇閱讀內容。',
+    textNotArticle: 'Depth 針對文章和長篇文件最佳化。你仍然可以手動嘗試此頁面。',
   },
   tryAnyway: '仍然嘗試',
 };

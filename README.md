@@ -12,6 +12,10 @@ A Chrome extension that injects a floating panel into any webpage and lets you s
 
 MVP ships levels 1–5.
 
+## Product focus
+
+Depth's MVP is article-first: it is designed for individual articles, essays, and long-form documentation pages. Feed pages, comment threads, dashboards, and app shells should not auto-generate by default, even if they contain text. The panel may offer "Try anyway" as an explicit user override, but automatic extraction should stay tuned for article-shaped reading surfaces.
+
 ## Development
 
 ```bash

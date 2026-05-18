@@ -91,4 +91,38 @@ describe('extractPage fallback containers', () => {
     expect(extracted.text).toContain('Multi-agent systems coordinate specialized components');
     expect(extracted.text).not.toContain('Resources Company');
   });
+
+  it('marks text-heavy pages unsupported when the text is not article-shaped', () => {
+    history.pushState(null, '', '/app/shell');
+    document.title = 'Application Shell';
+    document.body.innerHTML = `
+      <div>
+        Search Navigation Dashboard Settings Activity
+        ${'This page has visible text, but no article heading or readable content container. '.repeat(8)}
+      </div>
+    `;
+
+    const extracted = extractPage();
+
+    expect(extracted.classification).toEqual({ kind: 'unsupported', reason: 'text-not-article' });
+    expect(extracted.wordCount).toBeGreaterThan(0);
+    expect(extracted.text).toContain('This page has visible text');
+  });
+
+  it('rejects link-heavy docs containers instead of treating navigation as an article', () => {
+    history.pushState(null, '', '/docs/index');
+    document.title = 'Docs Index';
+    document.body.innerHTML = `
+      <div id="content-area">
+        <h1>Docs Index</h1>
+        ${Array.from({ length: 24 }, (_, i) => `<a href="/docs/${i}">Navigation link ${i} with a long label</a>`).join(' ')}
+        ${'Open a topic from the navigation list. '.repeat(4)}
+      </div>
+    `;
+
+    const extracted = extractPage();
+
+    expect(extracted.classification).toEqual({ kind: 'unsupported', reason: 'text-not-article' });
+    expect(extracted.text).toContain('Navigation link');
+  });
 });

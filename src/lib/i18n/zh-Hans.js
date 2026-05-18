@@ -122,16 +122,19 @@ export const zhHans = {
     feed: '信息流',
     discussion: '评论讨论',
     unsupported: '未找到文章',
+    textNotArticle: '找到页面文本',
   },
   unsupportedTitle: {
     feed: '这看起来是一个信息流',
     discussion: '这看起来是一个评论讨论页',
     unsupported: '没有在此页面找到文章',
+    textNotArticle: '找到了页面文本，但它不像一篇文章',
   },
   unsupportedBody: {
     feed: 'Depth 更适合阅读单篇文章 —— 试着打开某一条具体的帖子。',
     discussion: '目前 Depth 只总结原帖内容，评论暂未支持。',
     unsupported: 'Depth 更适合长篇阅读内容。',
+    textNotArticle: 'Depth 针对文章和长篇文档优化。你仍然可以手动尝试此页面。',
   },
   tryAnyway: '仍然尝试',
 };

@@ -127,16 +127,19 @@ export const en = {
     feed: 'feed',
     discussion: 'discussion',
     unsupported: 'no article found',
+    textNotArticle: 'page text found',
   },
   unsupportedTitle: {
     feed: 'This looks like a feed',
     discussion: 'This looks like a discussion thread',
     unsupported: "Couldn't find an article here",
+    textNotArticle: 'Found page text, but not article-shaped',
   },
   unsupportedBody: {
     feed: 'Depth works best on individual articles — try opening a single post.',
     discussion: "Depth currently summarizes the original post only; comments aren't supported yet.",
     unsupported: 'Depth works best on long-form writing.',
+    textNotArticle: 'Depth is tuned for articles and long-form docs. You can still try this page manually.',
   },
   tryAnyway: 'Try anyway',
 };

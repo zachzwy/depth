@@ -130,16 +130,19 @@ export const ja = {
     feed: 'フィード',
     discussion: 'コメントスレッド',
     unsupported: '記事が見つかりません',
+    textNotArticle: 'ページ本文あり',
   },
   unsupportedTitle: {
     feed: 'これはフィードのようです',
     discussion: 'これはコメントスレッドのようです',
     unsupported: '記事が見つかりませんでした',
+    textNotArticle: 'ページ内にテキストはありますが、記事の形ではありません',
   },
   unsupportedBody: {
     feed: 'Depth は個別の記事で最も力を発揮します。単独の投稿を開いてみてください。',
     discussion: '現在 Depth は元の投稿のみを要約します。コメントにはまだ対応していません。',
     unsupported: 'Depth は長文の読み物で最も力を発揮します。',
+    textNotArticle: 'Depth は記事や長めのドキュメント向けに調整されています。このページも手動で試せます。',
   },
   tryAnyway: 'それでも試す',
 };

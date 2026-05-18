@@ -45,6 +45,20 @@ describe('UnsupportedCard snapshots', () => {
     expect(container.innerHTML).toMatchSnapshot();
   });
 
+  it('text-not-article variant (English)', () => {
+    const { container } = render(
+      <UnsupportedCard
+        extracted={fixture('unsupported', {
+          wordCount: 220,
+          classification: { kind: 'unsupported', reason: 'text-not-article' },
+        })}
+        onTryAnyway={() => {}}
+        ui={en}
+      />,
+    );
+    expect(container.innerHTML).toMatchSnapshot();
+  });
+
   it('feed variant (Simplified Chinese)', () => {
     const { container } = render(
       <UnsupportedCard extracted={fixture('feed')} onTryAnyway={() => {}} ui={zhHans} />,

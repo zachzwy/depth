@@ -122,16 +122,19 @@ export const es = {
     feed: 'feed',
     discussion: 'hilo de comentarios',
     unsupported: 'sin artículo',
+    textNotArticle: 'texto de página encontrado',
   },
   unsupportedTitle: {
     feed: 'Esto parece un feed',
     discussion: 'Esto parece un hilo de comentarios',
     unsupported: 'No se encontró ningún artículo',
+    textNotArticle: 'Se encontró texto en la página, pero no tiene forma de artículo',
   },
   unsupportedBody: {
     feed: 'Depth funciona mejor con artículos individuales: prueba a abrir una sola publicación.',
     discussion: 'Por ahora Depth resume solo la publicación original; los comentarios aún no se admiten.',
     unsupported: 'Depth funciona mejor con textos largos.',
+    textNotArticle: 'Depth está optimizado para artículos y documentación extensa. Aun así puedes probar esta página manualmente.',
   },
   tryAnyway: 'Intentar de todos modos',
 };
