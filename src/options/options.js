@@ -8,7 +8,7 @@ import {
   DEFAULT_HOSTED_BASE_URL,
 } from '../lib/settings.js';
 import { LANGUAGE_OPTIONS, getLanguage } from '../lib/i18n/index.js';
-import { signInWithGoogle, signOut, fetchWhoami } from '../background/hosted-auth.js';
+import { signInWithGoogle, signOut, fetchWhoami, ensureHostedSession } from '../background/hosted-auth.js';
 import { openCheckout, openPortal, BillingError } from '../background/billing.js';
 
 const providerSelect = document.getElementById('providerId');
@@ -375,6 +375,19 @@ async function refreshAccountUI({ skipWhoami = false } = {}) {
   renderAccount(settings, null);
 
   if (skipWhoami) return;
+
+  // Refresh the access token before whoami/usage. Without this, an
+  // expired anon token (the common case for free users coming back the
+  // next day) 401s and the usage line silently disappears. The SW does
+  // this on every hosted call; the options page needs it too.
+  if (settings.hostedAccessToken || settings.hostedRefreshToken) {
+    try {
+      await ensureHostedSession(settings);
+    } catch (err) {
+      console.warn('[options] ensureHostedSession failed:', err?.message);
+    }
+  }
+
   // Quietly refresh tier/subscription from the server; if it errors (no
   // token, offline) the cached values stand. Usage is fetched in parallel
   // so the panel populates in one paint cycle.
