@@ -192,7 +192,10 @@ describe('depth:extract-document message handler', () => {
     expect(reply.extracted.text).toContain('Google Docs can provide exported plain text');
     expect(globalThis.fetch).toHaveBeenCalledWith(
       'https://docs.google.com/document/d/doc123/export?format=txt',
-      expect.objectContaining({ credentials: 'include' }),
+      expect.objectContaining({
+        credentials: 'include',
+        headers: { accept: 'text/plain,*/*' },
+      }),
     );
   });
 });
