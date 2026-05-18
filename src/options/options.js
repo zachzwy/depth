@@ -43,6 +43,7 @@ const accountRenewal = document.getElementById('account-renewal');
 const signinGoogleBtn = document.getElementById('signin-google-btn');
 const signinError = document.getElementById('signin-error');
 const upgradeBtn = document.getElementById('upgrade-btn');
+const upgradePitch = document.getElementById('upgrade-pitch');
 const portalBtn = document.getElementById('portal-btn');
 const signoutBtn = document.getElementById('signout-btn');
 const billingError = document.getElementById('billing-error');
@@ -320,6 +321,7 @@ function renderAccount(settings, usageSnapshot) {
 
   const tier = settings.hostedTier === 'pro' ? 'pro' : 'free';
   upgradeBtn.hidden = tier !== 'free';
+  upgradePitch.hidden = tier !== 'free';
   portalBtn.hidden = tier !== 'pro';
 
   const renewalText = formatRenewal(settings.hostedCurrentPeriodEnd, settings.hostedSubscriptionStatus);

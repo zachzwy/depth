@@ -305,6 +305,21 @@ body { margin: 0; }
   flex-wrap: wrap;
 }
 
+.account-card__upgrade-pitch {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  background: linear-gradient(
+    135deg,
+    rgba(120, 170, 255, 0.10),
+    rgba(160, 130, 255, 0.10)
+  );
+  border-left: 2px solid rgba(140, 160, 255, 0.55);
+  border-radius: 4px;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .account-card__error {
   margin: 10px 0 0;
   color: #f08a8a;
