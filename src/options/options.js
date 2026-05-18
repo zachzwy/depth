@@ -284,28 +284,24 @@ function renderAccount(settings, usageSnapshot) {
     }
   }
 
-  const isSignedIn = !settings.hostedIsAnonymous && Boolean(settings.hostedAccessToken);
+  const hasSession = Boolean(settings.hostedAccessToken);
+  const isSignedIn = hasSession && !settings.hostedIsAnonymous;
 
-  if (!isSignedIn) {
-    accountSignedOut.hidden = false;
-    accountSignedIn.hidden = true;
+  // Tier badge: anonymous sessions get a "Free" badge too — they have a
+  // quota that the user should be able to see.
+  if (hasSession) {
+    const tier = settings.hostedTier === 'pro' ? 'pro' : 'free';
+    accountTierBadge.hidden = false;
+    accountTierBadge.textContent = tier === 'pro' ? 'Pro' : 'Free';
+    accountTierBadge.dataset.tier = tier;
+  } else {
     accountTierBadge.hidden = true;
-    return;
   }
 
-  accountSignedOut.hidden = true;
-  accountSignedIn.hidden = false;
-  accountEmail.textContent = settings.hostedEmail || '(no email on file)';
-
-  const tier = settings.hostedTier === 'pro' ? 'pro' : 'free';
-  accountTierBadge.hidden = false;
-  accountTierBadge.textContent = tier === 'pro' ? 'Pro' : 'Free';
-  accountTierBadge.dataset.tier = tier;
-
-  upgradeBtn.hidden = tier !== 'free';
-  portalBtn.hidden = tier !== 'pro';
-
-  if (usageSnapshot?.tiers) {
+  // Usage counter: rendered for every active hosted session, anonymous
+  // or signed-in. Lives inside the signed-out card too so anon users see
+  // their remaining quota above the sign-in CTA.
+  if (hasSession && usageSnapshot?.tiers) {
     const lines = [];
     for (const kind of ['generate', 'quiz', 'dive']) {
       const u = usageSnapshot.tiers[kind];
@@ -320,6 +316,24 @@ function renderAccount(settings, usageSnapshot) {
   } else {
     accountUsage.hidden = true;
   }
+
+  if (!isSignedIn) {
+    accountSignedOut.hidden = false;
+    accountSignedIn.hidden = true;
+    // Move the usage line into the signed-out card so anon users see it.
+    accountSignedOut.insertBefore(accountUsage, accountSignedOut.firstChild);
+    return;
+  }
+
+  accountSignedOut.hidden = true;
+  accountSignedIn.hidden = false;
+  accountEmail.textContent = settings.hostedEmail || '(no email on file)';
+  // Put usage back under "Signed in as" for permanent accounts.
+  accountSignedIn.insertBefore(accountUsage, accountSignedIn.children[1]);
+
+  const tier = settings.hostedTier === 'pro' ? 'pro' : 'free';
+  upgradeBtn.hidden = tier !== 'free';
+  portalBtn.hidden = tier !== 'pro';
 
   const renewalText = formatRenewal(settings.hostedCurrentPeriodEnd, settings.hostedSubscriptionStatus);
   if (renewalText) {
@@ -534,6 +548,16 @@ grantBtn.addEventListener('click', async () => {
   captureSavedSnapshot();
   await refreshModelUI();
 })();
+
+// Refresh tier/usage whenever the tab regains focus (e.g. user returns
+// here after completing Stripe checkout in another tab). The webhook has
+// already flipped tier server-side; this just pulls the fresh whoami so
+// the Pro badge shows without requiring a manual reload.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (currentMode() !== 'hosted') return;
+  refreshAccountUI();
+});
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
