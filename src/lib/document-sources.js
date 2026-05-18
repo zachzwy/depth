@@ -1,11 +1,40 @@
 export function isPdfUrl(url) {
+  return documentSourceFromUrl(url)?.sourceType === 'pdf';
+}
+
+export function documentSourceFromUrl(url) {
   let parsed;
   try {
     parsed = new URL(url);
   } catch {
-    return false;
+    return null;
   }
-  return /\.pdf$/i.test(parsed.pathname) || parseArxivId(url) !== null;
+
+  if (/\.pdf$/i.test(parsed.pathname) || parseArxivId(url) !== null) {
+    return {
+      kind: 'pdf',
+      sourceType: 'pdf',
+      label: 'PDF',
+    };
+  }
+
+  if (parseGoogleDoc(url)) {
+    return {
+      kind: 'document',
+      sourceType: 'google-doc',
+      label: 'Google Doc',
+    };
+  }
+
+  if (wordDocxCandidates(url).length > 0) {
+    return {
+      kind: 'document',
+      sourceType: 'word-docx',
+      label: 'Word document',
+    };
+  }
+
+  return null;
 }
 
 export function parseArxivId(url) {
@@ -31,4 +60,94 @@ export function arxivHtmlCandidates(url) {
       label: 'ar5iv HTML',
     },
   ];
+}
+
+export function parseGoogleDoc(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  const host = parsed.hostname.toLowerCase();
+  if (host !== 'docs.google.com') return null;
+
+  const published = parsed.pathname.match(/^\/document\/d\/e\/([^/]+)\/pub/);
+  if (published) {
+    return { id: published[1], published: true };
+  }
+
+  const regular = parsed.pathname.match(/^\/document\/(?:u\/\d+\/)?d\/([^/]+)/);
+  if (regular) {
+    return { id: regular[1], published: false };
+  }
+
+  return null;
+}
+
+export function googleDocTextCandidates(url) {
+  const doc = parseGoogleDoc(url);
+  if (!doc) return [];
+  if (doc.published) {
+    return [
+      {
+        url: `https://docs.google.com/document/d/e/${doc.id}/pub?output=txt`,
+        label: 'Google Docs published text',
+      },
+    ];
+  }
+  return [
+    {
+      url: `https://docs.google.com/document/d/${doc.id}/export?format=txt`,
+      label: 'Google Docs text',
+    },
+  ];
+}
+
+export function wordDocxCandidates(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return [];
+  }
+
+  const candidates = [];
+  if (/\.docx$/i.test(parsed.pathname)) {
+    candidates.push({ url: parsed.href, label: 'Word document' });
+  }
+
+  for (const value of parsed.searchParams.values()) {
+    if (!value) continue;
+    let decoded = value;
+    try {
+      decoded = decodeURIComponent(value);
+    } catch {
+      // Keep the original value.
+    }
+    if (looksLikeDocxUrl(decoded)) {
+      candidates.push({ url: decoded, label: 'Word document' });
+    }
+  }
+
+  return dedupeCandidates(candidates);
+}
+
+function looksLikeDocxUrl(value) {
+  if (!/^https?:\/\//i.test(value)) return false;
+  try {
+    const parsed = new URL(value);
+    return /\.docx$/i.test(parsed.pathname) || /\.docx(?:[/?#]|$)/i.test(value);
+  } catch {
+    return false;
+  }
+}
+
+function dedupeCandidates(candidates) {
+  const seen = new Set();
+  return candidates.filter((candidate) => {
+    if (seen.has(candidate.url)) return false;
+    seen.add(candidate.url);
+    return true;
+  });
 }

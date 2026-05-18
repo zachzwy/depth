@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { classifyByUrl, extractPage } from '../../src/content/extractor.js';
 
 describe('classifyByUrl', () => {
@@ -62,6 +62,11 @@ describe('classifyByUrl', () => {
 });
 
 describe('extractPage fallback containers', () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+    history.pushState(null, '', '/');
+  });
+
   it('marks PDF URLs for background extraction before article fallback', () => {
     history.pushState(null, '', '/paper.pdf');
     document.title = '1706.03762';
@@ -71,6 +76,37 @@ describe('extractPage fallback containers', () => {
 
     expect(extracted.classification).toEqual({
       kind: 'pdf',
+      sourceType: 'pdf',
+      reason: 'needs-background-extraction',
+    });
+    expect(extracted.text).toBe('');
+  });
+
+  it('marks Google Docs for background extraction before article fallback', () => {
+    vi.stubGlobal('location', { href: 'https://docs.google.com/document/d/abc123/edit' });
+    document.title = 'Product Strategy - Google Docs';
+    document.body.innerHTML = '<main><h1>Product Strategy</h1></main>';
+
+    const extracted = extractPage();
+
+    expect(extracted.classification).toEqual({
+      kind: 'document',
+      sourceType: 'google-doc',
+      reason: 'needs-background-extraction',
+    });
+    expect(extracted.text).toBe('');
+  });
+
+  it('marks direct DOCX URLs for background extraction', () => {
+    vi.stubGlobal('location', { href: 'https://example.com/brief.docx' });
+    document.title = 'brief.docx';
+    document.body.innerHTML = '<main><h1>Brief</h1></main>';
+
+    const extracted = extractPage();
+
+    expect(extracted.classification).toEqual({
+      kind: 'document',
+      sourceType: 'word-docx',
       reason: 'needs-background-extraction',
     });
     expect(extracted.text).toBe('');

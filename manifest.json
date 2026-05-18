@@ -8,7 +8,8 @@
   "permissions": ["activeTab", "storage", "scripting", "identity"],
   "host_permissions": [
     "https://arxiv.org/*",
-    "https://ar5iv.labs.arxiv.org/*"
+    "https://ar5iv.labs.arxiv.org/*",
+    "https://docs.google.com/*"
   ],
   "optional_host_permissions": [
     "https://openrouter.ai/api/v1/*",

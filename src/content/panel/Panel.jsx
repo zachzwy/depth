@@ -63,6 +63,11 @@ function clampPanelHeight(h, topPx) {
   return Math.max(MIN_PANEL_HEIGHT, Math.min(cap, h));
 }
 
+function needsBackgroundDocumentExtraction(ext) {
+  const kind = ext?.classification?.kind;
+  return kind === 'pdf' || kind === 'document';
+}
+
 export default function Panel({ pageMeta, onClose }) {
   // Levels 1-3 state
   const [level, setLevel] = useState(1);
@@ -157,7 +162,7 @@ export default function Panel({ pageMeta, onClose }) {
   }, [pageMeta.url]);
 
   const resolveDocumentExtraction = useCallback(async (ext) => {
-    if (ext?.classification?.kind !== 'pdf') return ext;
+    if (!needsBackgroundDocumentExtraction(ext)) return ext;
     setStatus('extracting');
     try {
       const res = await chrome.runtime.sendMessage({
@@ -166,13 +171,13 @@ export default function Panel({ pageMeta, onClose }) {
         title: ext.title || pageMeta.title,
       });
       if (!res?.ok || !res.extracted?.text) {
-        throw new Error(res?.message ?? 'Could not read this PDF.');
+        throw new Error(res?.message ?? 'Could not read this document.');
       }
       return res.extracted;
     } catch (err) {
       setError({
-        code: 'PDF_EXTRACT_FAILED',
-        message: err?.message ?? 'Could not read this PDF.',
+        code: 'DOCUMENT_EXTRACT_FAILED',
+        message: err?.message ?? 'Could not read this document.',
       });
       setStatus('error');
       return null;

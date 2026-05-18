@@ -1,14 +1,31 @@
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import * as pdfjsWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs';
-import { arxivHtmlCandidates, parseArxivId } from '../lib/document-sources.js';
+import { extractDocxTextFromBytes } from './docx.js';
+import {
+  arxivHtmlCandidates,
+  googleDocTextCandidates,
+  parseArxivId,
+  parseGoogleDoc,
+  wordDocxCandidates,
+} from '../lib/document-sources.js';
 
 const MIN_TEXT_LENGTH = 200;
 const MAX_TEXT_LENGTH = 60000;
 const MAX_PDF_BYTES = 20 * 1024 * 1024;
 const MAX_PDF_PAGES = 50;
+const MAX_DOCX_BYTES = 20 * 1024 * 1024;
 
 export async function extractPdfDocument({ url, title, signal } = {}) {
   if (!url) throw new Error('No PDF URL provided');
+
+  if (parseGoogleDoc(url)) {
+    return extractGoogleDocText({ url, title, signal });
+  }
+
+  const wordCandidates = wordDocxCandidates(url);
+  if (wordCandidates.length > 0) {
+    return extractDocxDocument({ url, title, signal, candidates: wordCandidates });
+  }
 
   for (const candidate of arxivHtmlCandidates(url)) {
     try {
@@ -20,6 +37,90 @@ export async function extractPdfDocument({ url, title, signal } = {}) {
   }
 
   return extractPdfText({ url, title, signal });
+}
+
+async function extractGoogleDocText({ url, title, signal }) {
+  for (const candidate of googleDocTextCandidates(url)) {
+    const res = await fetch(candidate.url, {
+      signal,
+      credentials: 'include',
+      headers: { accept: 'text/plain,*/*' },
+    });
+    if (!res.ok) {
+      throw new Error(`Google Docs export failed (${res.status})`);
+    }
+    const text = normalizeDocumentText(await res.text());
+    if (text.length < MIN_TEXT_LENGTH) {
+      throw new Error('This Google Doc does not expose enough readable text.');
+    }
+    const capped = capText(text);
+    return {
+      title: titleFromUrl(url, title, 'Google Doc'),
+      byline: null,
+      siteName: 'Google Docs',
+      text: capped.text,
+      wordCount: countWords(capped.text),
+      truncated: capped.truncated,
+      sourceUrl: candidate.url,
+      sourceLabel: candidate.label,
+      classification: { kind: 'article', sourceType: 'google-doc' },
+    };
+  }
+
+  throw new Error('This Google Docs URL is not supported yet.');
+}
+
+async function extractDocxDocument({ url, title, signal, candidates }) {
+  let lastError;
+  for (const candidate of candidates) {
+    try {
+      const text = await fetchDocxText(candidate.url, signal);
+      if (text.length < MIN_TEXT_LENGTH) {
+        throw new Error('This Word document does not expose enough readable text.');
+      }
+      const capped = capText(text);
+      return {
+        title: titleFromUrl(url, title, 'Word document'),
+        byline: null,
+        siteName: null,
+        text: capped.text,
+        wordCount: countWords(capped.text),
+        truncated: capped.truncated,
+        sourceUrl: candidate.url,
+        sourceLabel: candidate.label,
+        classification: { kind: 'article', sourceType: 'word-docx' },
+      };
+    } catch (err) {
+      lastError = err;
+      console.warn('[Depth DOCX] candidate failed:', candidate.url, err?.message);
+    }
+  }
+  throw lastError ?? new Error('This Word document is not supported yet.');
+}
+
+async function fetchDocxText(url, signal) {
+  const res = await fetch(url, {
+    signal,
+    credentials: 'include',
+    headers: {
+      accept: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document,*/*',
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`Word document fetch failed (${res.status})`);
+  }
+
+  const len = Number(res.headers.get('content-length') || 0);
+  if (len > MAX_DOCX_BYTES) {
+    throw new Error('Word document is too large for this version of Depth');
+  }
+
+  const bytes = await res.arrayBuffer();
+  if (bytes.byteLength > MAX_DOCX_BYTES) {
+    throw new Error('Word document is too large for this version of Depth');
+  }
+
+  return normalizeDocumentText(await extractDocxTextFromBytes(bytes));
 }
 
 async function tryExtractHtml(candidate, { url, title, signal }) {
@@ -148,7 +249,17 @@ function capText(text) {
   };
 }
 
-function titleFromUrl(url, fallback) {
+function normalizeDocumentText(text) {
+  return text
+    .replace(/\r\n?/g, '\n')
+    .split(/\n{2,}/)
+    .map((part) => part.replace(/[ \t]+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n\n')
+    .trim();
+}
+
+function titleFromUrl(url, fallback, defaultTitle = 'PDF document') {
   if (fallback?.trim()) return fallback.trim();
   const id = parseArxivId(url);
   if (id) return `arXiv:${id}`;
@@ -156,7 +267,7 @@ function titleFromUrl(url, fallback) {
     const parsed = new URL(url);
     return decodeURIComponent(parsed.pathname.split('/').filter(Boolean).pop() || parsed.host);
   } catch {
-    return 'PDF document';
+    return defaultTitle;
   }
 }
 

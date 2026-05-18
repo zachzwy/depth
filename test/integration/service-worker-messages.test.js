@@ -170,4 +170,29 @@ describe('depth:extract-document message handler', () => {
       expect.any(Object),
     );
   });
+
+  it('returns extracted Google Docs export text', async () => {
+    globalThis.fetch.mockResolvedValueOnce(
+      new Response(`${'Google Docs can provide exported plain text for Depth. '.repeat(12)}`, {
+        status: 200,
+        headers: { 'content-type': 'text/plain' },
+      }),
+    );
+
+    await importWorker();
+    const reply = await fireMessage({
+      type: 'depth:extract-document',
+      url: 'https://docs.google.com/document/d/doc123/edit',
+      title: 'Product Notes - Google Docs',
+    });
+
+    expect(reply.ok).toBe(true);
+    expect(reply.extracted.classification).toEqual({ kind: 'article', sourceType: 'google-doc' });
+    expect(reply.extracted.sourceLabel).toBe('Google Docs text');
+    expect(reply.extracted.text).toContain('Google Docs can provide exported plain text');
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://docs.google.com/document/d/doc123/export?format=txt',
+      expect.objectContaining({ credentials: 'include' }),
+    );
+  });
 });

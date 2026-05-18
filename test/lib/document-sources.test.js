@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { arxivHtmlCandidates, isPdfUrl, parseArxivId } from '../../src/lib/document-sources.js';
+import {
+  arxivHtmlCandidates,
+  documentSourceFromUrl,
+  googleDocTextCandidates,
+  isPdfUrl,
+  parseArxivId,
+  parseGoogleDoc,
+  wordDocxCandidates,
+} from '../../src/lib/document-sources.js';
 
 describe('document source URL helpers', () => {
   it('detects direct PDF URLs', () => {
@@ -26,5 +34,43 @@ describe('document source URL helpers', () => {
         label: 'ar5iv HTML',
       },
     ]);
+  });
+
+  it('detects Google Docs and builds text export candidates', () => {
+    const url = 'https://docs.google.com/document/d/abc123/edit';
+    expect(documentSourceFromUrl(url)).toEqual({
+      kind: 'document',
+      sourceType: 'google-doc',
+      label: 'Google Doc',
+    });
+    expect(parseGoogleDoc(url)).toEqual({ id: 'abc123', published: false });
+    expect(googleDocTextCandidates(url)).toEqual([
+      {
+        url: 'https://docs.google.com/document/d/abc123/export?format=txt',
+        label: 'Google Docs text',
+      },
+    ]);
+  });
+
+  it('detects published Google Docs text export candidates', () => {
+    expect(googleDocTextCandidates('https://docs.google.com/document/d/e/2PACX-test/pub')).toEqual([
+      {
+        url: 'https://docs.google.com/document/d/e/2PACX-test/pub?output=txt',
+        label: 'Google Docs published text',
+      },
+    ]);
+  });
+
+  it('detects direct and embedded Word DOCX candidates', () => {
+    expect(documentSourceFromUrl('https://example.com/reports/brief.docx?download=1')).toEqual({
+      kind: 'document',
+      sourceType: 'word-docx',
+      label: 'Word document',
+    });
+    expect(
+      wordDocxCandidates(
+        'https://view.officeapps.live.com/op/view.aspx?src=https%3A%2F%2Fexample.com%2Fbrief.docx',
+      ),
+    ).toEqual([{ url: 'https://example.com/brief.docx', label: 'Word document' }]);
   });
 });
