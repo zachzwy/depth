@@ -56,6 +56,8 @@ export const es = {
   paywallTitle: 'Cuota diaria gratuita alcanzada',
   paywallBody: 'Depth Hosted es gratis hasta una cuota diaria. Has llegado al límite de hoy.',
   paywallUpgrade: 'Mejorar plan',
+  paywallSignIn: 'Iniciar sesión',
+  paywallSignInBody: 'Inicia sesión para obtener más cuota diaria.',
   paywallBringKey: 'Usar tu propia clave API',
   paywallBringKeyHint: 'Cambia al modo BYOK sin cuota de Depth.',
   buildQuiz: 'Preparando el cuestionario...',

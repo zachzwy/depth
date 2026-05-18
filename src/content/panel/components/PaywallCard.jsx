@@ -1,9 +1,10 @@
 // Rendered in place of the generic ErrorState when the hosted backend returns
 // LIMIT_REACHED. Gives the user two real paths instead of a dead-end:
-//   1. Upgrade — for signed-in users, kicks off a Stripe Checkout via
-//      onUpgrade and suppresses the anchor's default; for anonymous users
-//      we fall through to the static upgradeUrl anchor so they land on the
-//      marketing page where they can sign in.
+//   1. Upgrade (signed-in) / Sign in (anonymous) — for signed-in users this
+//      kicks off a Stripe Checkout via onUpgrade and suppresses the anchor's
+//      default; for anonymous users we render a Sign in button instead that
+//      launches the Google sign-in flow via onSignIn so signing in restores
+//      quota without leaving the panel.
 //   2. Use your own key — flips providerMode to 'custom' and opens settings.
 // The BYOK escape valve is the asymmetric UX lever for hosted: most paywalls
 // can't offer it because they don't have a BYOK path. Depth does.
@@ -12,7 +13,7 @@
 // — we have to decide whether to preventDefault before yielding, otherwise
 // Chrome opens the anchor target in a new tab AND we also open a Stripe tab.
 
-export default function PaywallCard({ error, onUseOwnKey, onUpgrade, canUpgrade, ui }) {
+export default function PaywallCard({ error, onUseOwnKey, onUpgrade, onSignIn, canUpgrade, ui }) {
   const upgradeUrl = error?.upgradeUrl;
 
   function handleUpgradeClick(e) {
@@ -30,22 +31,39 @@ export default function PaywallCard({ error, onUseOwnKey, onUpgrade, canUpgrade,
     });
   }
 
+  function handleSignInClick() {
+    if (typeof onSignIn !== 'function') return;
+    Promise.resolve(onSignIn()).catch((err) => {
+      console.warn('[Depth panel] sign-in failed:', err?.message);
+    });
+  }
+
+  const body = canUpgrade
+    ? (error?.message ?? ui.paywallBody)
+    : ui.paywallSignInBody;
+
   return (
     <div class="state state--paywall">
       <h2 class="state__title">{ui.paywallTitle}</h2>
-      <p class="state__body">{error?.message ?? ui.paywallBody}</p>
+      <p class="state__body">{body}</p>
       <div class="state__actions">
-        {upgradeUrl && (
-          <a
-            class="state__cta"
-            href={upgradeUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={handleUpgradeClick}
-          >
-            {ui.paywallUpgrade}
-          </a>
-        )}
+        {canUpgrade
+          ? upgradeUrl && (
+              <a
+                class="state__cta"
+                href={upgradeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleUpgradeClick}
+              >
+                {ui.paywallUpgrade}
+              </a>
+            )
+          : (
+              <button type="button" class="state__cta" onClick={handleSignInClick}>
+                {ui.paywallSignIn}
+              </button>
+            )}
         <button type="button" class="state__secondary" onClick={onUseOwnKey}>
           {ui.paywallBringKey}
         </button>

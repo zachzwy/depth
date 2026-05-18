@@ -64,6 +64,8 @@ export const ja = {
   paywallTitle: '本日の無料利用枠に達しました',
   paywallBody: 'Depth Hosted は毎日の無料枠まで無料で使えます。本日の上限に達しました。',
   paywallUpgrade: 'アップグレード',
+  paywallSignIn: 'サインイン',
+  paywallSignInBody: 'サインインして毎日の利用枠を増やしましょう。',
   paywallBringKey: '自分の API キーを使う',
   paywallBringKeyHint: 'BYOK モードに切り替え、Depth の利用枠は使いません。',
   buildQuiz: 'クイズを作成しています...',

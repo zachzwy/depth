@@ -832,6 +832,24 @@ export default function Panel({ pageMeta, onClose }) {
     }
   }
 
+  // Anonymous-user variant of the paywall CTA. Routes the click through the
+  // SW because chrome.identity (which signInWithGoogle uses) isn't available
+  // in content-script contexts. On success we clear the LIMIT_REACHED error
+  // and re-init so the paywall card goes away and the user can retry.
+  async function onSignIn() {
+    try {
+      const res = await chrome.runtime.sendMessage({ type: 'depth:sign-in' });
+      if (res?.ok) {
+        setError(null);
+        await init();
+      } else if (res) {
+        console.warn('[Depth panel] sign-in failed:', res.code, res.message);
+      }
+    } catch (e) {
+      console.warn('[Depth panel] sign-in sendMessage threw:', e?.message);
+    }
+  }
+
   function buildSnapshot() {
     return {
       data: data ?? null,
@@ -1013,6 +1031,7 @@ export default function Panel({ pageMeta, onClose }) {
                 error={error}
                 onUseOwnKey={onUseOwnKey}
                 onUpgrade={onUpgrade}
+                onSignIn={onSignIn}
                 canUpgrade={canUpgrade}
                 ui={ui}
               />

@@ -44,11 +44,12 @@ function makeControllablePort() {
   };
 }
 
-async function configureHosted() {
+async function configureHosted({ anonymous = false } = {}) {
   const next = {
     providerMode: 'hosted',
     hostedBaseUrl: 'http://localhost:54321/functions/v1',
     preferredLanguage: 'English',
+    hostedIsAnonymous: anonymous,
   };
   await setSettings({
     ...next,
@@ -92,6 +93,33 @@ describe('Panel paywall (LIMIT_REACHED) flow', () => {
     const upgradeLink = screen.getByRole('link', { name: /Upgrade/ });
     expect(upgradeLink.getAttribute('href')).toBe('https://depth.app/upgrade');
     expect(upgradeLink.getAttribute('target')).toBe('_blank');
+  });
+
+  it('anonymous users see a Sign in CTA that messages the SW', async () => {
+    await configureHosted({ anonymous: true });
+    const port = makeControllablePort();
+    chrome.runtime.connect.mockImplementation(() => port);
+    const sendMessageSpy = vi.spyOn(chrome.runtime, 'sendMessage').mockResolvedValue({ ok: true });
+
+    render(<Panel pageMeta={pageMeta} onClose={() => {}} />);
+    await flush();
+
+    port.fire({
+      type: 'error',
+      code: 'LIMIT_REACHED',
+      message: 'Daily free quota reached.',
+      upgradeUrl: 'https://depth.app/upgrade',
+    });
+    await flush();
+
+    expect(screen.queryByRole('link', { name: /Upgrade/ })).toBeNull();
+    const signInBtn = screen.getByRole('button', { name: /Sign in/i });
+    expect(signInBtn).toBeTruthy();
+    expect(screen.getByText(/Sign in to get more daily quota/i)).toBeTruthy();
+
+    fireEvent.click(signInBtn);
+    await flush();
+    expect(sendMessageSpy).toHaveBeenCalledWith({ type: 'depth:sign-in' });
   });
 
   it('"Use your own API key" flips providerMode to custom and opens settings', async () => {

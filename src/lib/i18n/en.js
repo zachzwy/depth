@@ -61,6 +61,8 @@ export const en = {
   paywallTitle: 'Daily free quota reached',
   paywallBody: "Depth Hosted is free up to a daily quota. You've hit today's limit.",
   paywallUpgrade: 'Upgrade',
+  paywallSignIn: 'Sign in',
+  paywallSignInBody: 'Sign in to get more daily quota.',
   paywallBringKey: 'Use your own API key',
   paywallBringKeyHint: 'Switches to BYOK mode with no Depth quota.',
   buildQuiz: 'Building your quiz...',

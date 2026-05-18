@@ -1,6 +1,6 @@
 import { streamMessage } from './api.js';
 import { streamHosted, HostedError } from './hosted-client.js';
-import { ensureHostedSession, completeHostedSignupWithCaptcha } from './hosted-auth.js';
+import { ensureHostedSession, completeHostedSignupWithCaptcha, signInWithGoogle } from './hosted-auth.js';
 import { openCheckout, BillingError } from './billing.js';
 import { publicApiErrorMessage, shuffle, stripJsonWrapper, makeAbort } from './helpers.js';
 import contentScriptPath from '../content/content-script.js?script';
@@ -99,6 +99,21 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       } catch (err) {
         const code = err instanceof BillingError ? err.code : 'BILLING_FAILED';
         sendResponse({ ok: false, code, message: err?.message ?? 'Checkout failed' });
+      }
+    })();
+    return true;
+  }
+  if (msg?.type === 'depth:sign-in') {
+    // Paywall "Sign in" click for anonymous users. chrome.identity isn't
+    // available in content-script contexts, so the panel routes the click
+    // through here and signInWithGoogle runs launchWebAuthFlow from the SW.
+    (async () => {
+      try {
+        const settings = await getSettings();
+        await signInWithGoogle(settings);
+        sendResponse({ ok: true });
+      } catch (err) {
+        sendResponse({ ok: false, code: 'SIGN_IN_FAILED', message: err?.message ?? 'Sign-in failed' });
       }
     })();
     return true;

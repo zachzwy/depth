@@ -64,6 +64,8 @@ export const zhHant = {
   paywallTitle: '今日免費額度已用完',
   paywallBody: 'Depth Hosted 每天提供一定的免費額度，今天已達上限。',
   paywallUpgrade: '升級',
+  paywallSignIn: '登入',
+  paywallSignInBody: '登入以獲得更多每日額度。',
   paywallBringKey: '使用自己的 API 金鑰',
   paywallBringKeyHint: '切換到 BYOK 模式，不再使用 Depth 的額度。',
   buildQuiz: '正在生成小測...',

@@ -56,6 +56,8 @@ export const fr = {
   paywallTitle: 'Quota quotidien gratuit atteint',
   paywallBody: 'Depth Hosted est gratuit dans la limite d’un quota quotidien. Vous avez atteint la limite du jour.',
   paywallUpgrade: 'Mettre à niveau',
+  paywallSignIn: 'Se connecter',
+  paywallSignInBody: 'Connectez-vous pour augmenter votre quota quotidien.',
   paywallBringKey: 'Utiliser votre propre clé API',
   paywallBringKeyHint: 'Bascule en mode BYOK, sans quota Depth.',
   buildQuiz: 'Préparation du quiz...',

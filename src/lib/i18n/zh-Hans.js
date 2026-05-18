@@ -56,6 +56,8 @@ export const zhHans = {
   paywallTitle: '今日免费额度已用完',
   paywallBody: 'Depth Hosted 每天提供一定的免费额度，今天已达上限。',
   paywallUpgrade: '升级',
+  paywallSignIn: '登录',
+  paywallSignInBody: '登录以获得更多每日额度。',
   paywallBringKey: '使用自己的 API 密钥',
   paywallBringKeyHint: '切换到 BYOK 模式，不再使用 Depth 的额度。',
   buildQuiz: '正在生成小测...',
