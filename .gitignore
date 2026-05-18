@@ -6,7 +6,21 @@ coverage/
 *.log
 .env
 .env.local
+.env.*
+!.env.example
+
+# Local assistant/tooling state
+.claude/settings.local.json
 
 # Dev signing key — keeps the extension id stable in dev. The matching
-# public key is checked into manifest.json:"key". See PLAN.md.
+# public key is checked into manifest.json:"key". See README.md.
 .keys/
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.csr
+
+# Chrome extension packages
+*.crx
