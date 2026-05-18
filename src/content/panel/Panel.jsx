@@ -30,6 +30,7 @@ import LoadingSkeleton from './components/LoadingSkeleton.jsx';
 import ErrorState from './components/ErrorState.jsx';
 import PaywallCard from './components/PaywallCard.jsx';
 import HostedPermissionCard from './components/HostedPermissionCard.jsx';
+import CaptchaCard from './components/CaptchaCard.jsx';
 import StaleBanner from './components/StaleBanner.jsx';
 import UnsupportedCard from './components/UnsupportedCard.jsx';
 import ExtractionStats from './components/ExtractionStats.jsx';
@@ -788,6 +789,38 @@ export default function Panel({ pageMeta, onClose }) {
     }
   }
 
+  // Second-stage first-run gate. After permission is granted, the first
+  // hosted call may bounce with CAPTCHA_REQUIRED if Supabase Auth has
+  // Turnstile enabled. The SW handler owns the launchWebAuthFlow + retry
+  // signup; we just route the click through so the user-gesture survives.
+  async function onCompleteCaptcha() {
+    const baseUrl = (settings?.hostedBaseUrl ?? '').replace(/\/+$/, '');
+    if (!baseUrl) return false;
+    let captchaUrl;
+    try {
+      const redirect = chrome.identity?.getRedirectURL?.() ?? '';
+      if (!redirect) return false;
+      captchaUrl = `${baseUrl}/captcha-page?redirect=${encodeURIComponent(redirect)}`;
+    } catch {
+      return false;
+    }
+    try {
+      const res = await chrome.runtime.sendMessage({
+        type: 'depth:complete-captcha',
+        captchaUrl,
+      });
+      if (res?.ok) {
+        setError(null);
+        await init();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.warn('[Depth panel] complete-captcha failed:', e?.message);
+      return false;
+    }
+  }
+
   const canUpgrade = settings?.hostedIsAnonymous === false;
   async function onUpgrade() {
     try {
@@ -992,9 +1025,17 @@ export default function Panel({ pageMeta, onClose }) {
                 ui={ui}
               />
             )}
+            {status === 'error' && error?.code === 'CAPTCHA_REQUIRED' && (
+              <CaptchaCard
+                onVerify={onCompleteCaptcha}
+                onOpenSettings={openSettings}
+                ui={ui}
+              />
+            )}
             {status === 'error'
               && error?.code !== 'LIMIT_REACHED'
-              && error?.code !== 'HOSTED_PERMISSION_REQUIRED' && (
+              && error?.code !== 'HOSTED_PERMISSION_REQUIRED'
+              && error?.code !== 'CAPTCHA_REQUIRED' && (
               <ErrorState error={error} onRetry={init} ui={ui} />
             )}
 

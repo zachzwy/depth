@@ -27,7 +27,7 @@
 // are a handful of POSTs that we can write directly.
 
 import { setSettings, getSettings } from '../lib/settings.js';
-import { assertHostedPermission } from './hosted-client.js';
+import { assertHostedPermission, HostedError } from './hosted-client.js';
 
 // Refresh slightly before exp to avoid edge-of-window failures.
 const EXPIRY_SAFETY_MARGIN_MS = 60 * 1000;
@@ -80,7 +80,20 @@ export async function ensureHostedSession(settings) {
     }
   }
 
-  const signup = await anonSignup(authUrl, anonKey);
+  let signup;
+  try {
+    signup = await anonSignup(authUrl, anonKey);
+  } catch (err) {
+    if (err?.code === 'CAPTCHA_REQUIRED') {
+      // The panel renders a CaptchaCard for this code; the SW handler
+      // owning the user-gesture click then calls completeHostedSignupWithCaptcha.
+      throw new HostedError({
+        code: 'CAPTCHA_REQUIRED',
+        message: 'Captcha verification required to start an anonymous session.',
+      });
+    }
+    throw err;
+  }
   await applySession(settings, { ...signup, isAnonymous: true, email: '' });
   return { accessToken: signup.access_token, subjectId: signup.user.id };
 }
@@ -391,14 +404,26 @@ async function clearLocalSession(settings) {
   });
 }
 
-async function anonSignup(authUrl, anonKey) {
+async function anonSignup(authUrl, anonKey, captchaToken) {
+  const body = captchaToken
+    ? { data: {}, gotrue_meta_security: { captcha_token: captchaToken } }
+    : { data: {} };
   const res = await fetch(`${authUrl}/signup`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', apikey: anonKey },
-    body: JSON.stringify({ data: {} }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
+    // Supabase returns 400 with "captcha protection: ..." text when the
+    // project has Turnstile enabled but no token (or an invalid token)
+    // arrives. Surface this as a distinct code so the panel can pop the
+    // Turnstile widget instead of showing the generic error.
+    if (res.status === 400 && /captcha/i.test(detail)) {
+      const err = new Error('Captcha required for anonymous signup');
+      err.code = 'CAPTCHA_REQUIRED';
+      throw err;
+    }
     throw new Error(
       `Anonymous signup failed (${res.status})${detail ? `: ${detail.slice(0, 200)}` : ''}`,
     );
@@ -408,6 +433,26 @@ async function anonSignup(authUrl, anonKey) {
     throw new Error('Anonymous signup returned an unexpected shape');
   }
   return json;
+}
+
+/**
+ * Renew the hosted session by retrying anonSignup with a captcha token.
+ * Called by the SW message handler that owns the launchWebAuthFlow user
+ * gesture — the token is obtained inside that handler and passed in here
+ * so this layer doesn't have to know about chrome.identity.
+ *
+ * @returns {Promise<{accessToken:string,subjectId:string}>}
+ */
+export async function completeHostedSignupWithCaptcha(settings, captchaToken) {
+  const authUrl = deriveAuthUrl(settings.hostedBaseUrl);
+  const anonKey = settings.hostedAnonKey;
+  if (!authUrl || !anonKey) {
+    throw new Error('Hosted auth misconfigured: missing base URL or anon key');
+  }
+  await assertHostedPermission(settings);
+  const signup = await anonSignup(authUrl, anonKey, captchaToken);
+  await applySession(settings, { ...signup, isAnonymous: true, email: '' });
+  return { accessToken: signup.access_token, subjectId: signup.user.id };
 }
 
 async function exchangeRefreshToken(authUrl, anonKey, refreshToken) {

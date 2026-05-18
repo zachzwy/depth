@@ -1,6 +1,6 @@
 import { streamMessage } from './api.js';
 import { streamHosted, HostedError } from './hosted-client.js';
-import { ensureHostedSession } from './hosted-auth.js';
+import { ensureHostedSession, completeHostedSignupWithCaptcha } from './hosted-auth.js';
 import { openCheckout, BillingError } from './billing.js';
 import { publicApiErrorMessage, shuffle, stripJsonWrapper, makeAbort } from './helpers.js';
 import contentScriptPath from '../content/content-script.js?script';
@@ -124,6 +124,60 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           message: err?.message ?? 'Permission request failed',
         }),
       );
+    return true;
+  }
+  if (msg?.type === 'depth:complete-captcha') {
+    // Panel's "Verify" click bubbles in here. We do the launchWebAuthFlow
+    // synchronously (no awaits in between) so the user-activation token
+    // survives, then hand the token to completeHostedSignupWithCaptcha
+    // which finishes the /signup call. On success the panel re-inits and
+    // generation proceeds as if captcha was never in the way.
+    const captchaUrl = msg.captchaUrl;
+    if (!captchaUrl) {
+      sendResponse({ ok: false, code: 'BAD_REQUEST', message: 'No captcha URL' });
+      return;
+    }
+    chrome.identity.launchWebAuthFlow(
+      { url: captchaUrl, interactive: true },
+      async (responseUrl) => {
+        const lastError = chrome.runtime.lastError;
+        if (lastError) {
+          sendResponse({
+            ok: false,
+            code: 'CAPTCHA_FAILED',
+            message: lastError.message || 'Captcha flow failed',
+          });
+          return;
+        }
+        if (!responseUrl) {
+          sendResponse({ ok: false, code: 'CAPTCHA_FAILED', message: 'No response URL' });
+          return;
+        }
+        try {
+          const url = new URL(responseUrl);
+          const frag = new URLSearchParams(url.hash.replace(/^#/, ''));
+          const token = frag.get('token');
+          const error = frag.get('error');
+          if (error || !token) {
+            sendResponse({
+              ok: false,
+              code: 'CAPTCHA_FAILED',
+              message: error ?? 'No captcha token returned',
+            });
+            return;
+          }
+          const settings = await getSettings();
+          await completeHostedSignupWithCaptcha(settings, token);
+          sendResponse({ ok: true });
+        } catch (err) {
+          sendResponse({
+            ok: false,
+            code: 'CAPTCHA_FAILED',
+            message: err?.message ?? 'Captcha signup failed',
+          });
+        }
+      },
+    );
     return true;
   }
   if (msg?.type === 'depth:probe-quiz') {
