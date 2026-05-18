@@ -974,18 +974,20 @@ export default function Panel({ pageMeta, onClose }) {
 
   function onShare() {
     if (!canShare()) return;
-    const consentRequired =
-      !settings?.communityPublishConsentAt && !settings?.communityAutoPublish;
-    setShareConsentRequired(consentRequired);
+    // The dialog always shows unless the user has explicitly opted into
+    // auto-publish (either by the dialog's "Always publish" button or
+    // by the Settings checkbox). One-time acknowledgment of the consent
+    // text is NOT enough to skip the dialog — publishing a public
+    // artifact is a per-article decision, not a per-account one.
+    const skipDialog = Boolean(settings?.communityAutoPublish);
+    setShareConsentRequired(!skipDialog);
     setShareResult(null);
     setShareError(null);
-    if (consentRequired) {
-      // Show the consent dialog first; user clicks Publish or Always.
-      setShareStatus('consent');
-    } else {
-      // User has opted in before — go straight to publish.
+    if (skipDialog) {
       setShareStatus('publishing');
       publishShare({ always: false });
+    } else {
+      setShareStatus('consent');
     }
   }
 

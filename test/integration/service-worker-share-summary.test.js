@@ -65,7 +65,7 @@ describe('depth:share-summary handler', () => {
     read: { sections: [{ heading: 'H', body: 'B' }] },
   };
 
-  it('returns {ok:true, slug, shareUrl} and stamps consent on first publish', async () => {
+  it('returns {ok:true, slug, shareUrl} on a successful publish', async () => {
     await setupSession();
     globalThis.fetch.mockResolvedValueOnce(
       jsonResponse(
@@ -101,17 +101,14 @@ describe('depth:share-summary handler', () => {
     // bytes — content-hash.js is covered by its own tests.
     expect(typeof body.articleHash).toBe('string');
     expect(body.articleHash.length).toBeGreaterThan(0);
-
-    // After a successful first publish, settings.communityPublishConsentAt
-    // should be set so the panel doesn't re-show the consent modal.
-    const settings = await getSettings();
-    expect(settings.communityPublishConsentAt).toBeGreaterThan(0);
   });
 
-  it("doesn't stamp consent again on subsequent publishes", async () => {
+  it('does not flip communityAutoPublish as a side effect', async () => {
+    // The auto-publish setting is opt-in only — via the Settings
+    // checkbox or the dialog's "Always publish" button (which sends
+    // an `always: true` flag the SW doesn't see at this layer).
+    // Plain publishes must never change it.
     await setupSession();
-    const stampedAt = Date.now() - 5000;
-    await setSettings({ communityPublishConsentAt: stampedAt });
     globalThis.fetch.mockResolvedValueOnce(
       jsonResponse(
         { slug: 'zzzz0000', shareUrl: 'https://depth.microfalls.com/s/zzzz0000' },
@@ -129,7 +126,7 @@ describe('depth:share-summary handler', () => {
     });
 
     const settings = await getSettings();
-    expect(settings.communityPublishConsentAt).toBe(stampedAt);
+    expect(settings.communityAutoPublish).toBe(false);
   });
 
   it('surfaces BAD_HOST from the backend back to the caller', async () => {

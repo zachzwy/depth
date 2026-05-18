@@ -238,9 +238,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === 'depth:share-summary') {
     // Publish the current panel snapshot to /community. The panel
     // builds the payload from cached level-1-3 data; we just forward
-    // it to depth-api. On first success we stamp
-    // settings.communityPublishConsentAt so the next publish doesn't
-    // re-show the consent modal.
+    // it to depth-api.
     //
     // We derive articleHash from the article text here rather than in
     // the panel because crypto.subtle is gated to secure contexts —
@@ -257,9 +255,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           articleHash,
           payload,
         });
-        if (!settings.communityPublishConsentAt) {
-          await setSettings({ communityPublishConsentAt: Date.now() });
-        }
         sendResponse({ ok: true, ...result });
       } catch (err) {
         const code =
