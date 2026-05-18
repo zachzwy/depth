@@ -30,6 +30,10 @@ async function baseSettings(overrides = {}) {
 
 beforeEach(() => {
   vi.spyOn(globalThis, 'fetch');
+  // ensureHostedSession now refuses before any /auth/v1 call when the
+  // hosted host permission isn't granted. These tests exercise the auth
+  // flow, not the permission gate, so grant it up front.
+  chrome.permissions._grant('http://localhost:54321/*');
 });
 
 afterEach(() => {

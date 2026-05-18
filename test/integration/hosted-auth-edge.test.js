@@ -24,6 +24,7 @@ const AUTH_BASE = 'http://localhost:54321/auth/v1';
 
 beforeEach(() => {
   vi.spyOn(globalThis, 'fetch');
+  chrome.permissions._grant('http://localhost:54321/*');
 });
 
 afterEach(() => {

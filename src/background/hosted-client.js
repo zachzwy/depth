@@ -24,6 +24,31 @@ export class HostedError extends Error {
 }
 
 /**
+ * Throws HostedError({ code: 'HOSTED_PERMISSION_REQUIRED' }) if Chrome's
+ * optional host permission for the hosted origin hasn't been granted.
+ * Called at the start of every hosted network path so a fresh install
+ * surfaces the dedicated permission card instead of a generic fetch
+ * failure from /auth/v1/...
+ */
+export async function assertHostedPermission(settings) {
+  const baseUrl = (settings.hostedBaseUrl ?? '').replace(/\/+$/, '');
+  if (!baseUrl) throw new HostedError({ code: 'BAD_REQUEST', message: 'No hosted base URL set' });
+  let origin;
+  try {
+    origin = new URL(baseUrl).origin;
+  } catch {
+    throw new HostedError({ code: 'BAD_REQUEST', message: 'Invalid hosted base URL' });
+  }
+  const granted = await chrome.permissions.contains({ origins: [origin + '/*'] });
+  if (!granted) {
+    throw new HostedError({
+      code: 'HOSTED_PERMISSION_REQUIRED',
+      message: `Permission for ${new URL(baseUrl).host} not granted.`,
+    });
+  }
+}
+
+/**
  * Stream a hosted generation request and parse the event-frame SSE response.
  *
  * @returns Promise<{ data, requestId, cacheKey }>
@@ -40,25 +65,8 @@ export async function streamHosted({
   const path = ENDPOINT_PATH[kind];
   if (!path) throw new Error(`Unknown hosted kind: ${kind}`);
 
+  await assertHostedPermission(settings);
   const baseUrl = (settings.hostedBaseUrl ?? '').replace(/\/+$/, '');
-  if (!baseUrl) throw new HostedError({ code: 'BAD_REQUEST', message: 'No hosted base URL set' });
-
-  // Mirror BYOK behavior: surface a clean error if the user hasn't granted
-  // host permission for the hosted origin yet. Origin pattern matches what
-  // `optional_host_permissions` declares in manifest.json.
-  let originPattern;
-  try {
-    originPattern = new URL(baseUrl).origin + '/*';
-  } catch {
-    throw new HostedError({ code: 'BAD_REQUEST', message: 'Invalid hosted base URL' });
-  }
-  const granted = await chrome.permissions.contains({ origins: [originPattern] });
-  if (!granted) {
-    throw new HostedError({
-      code: 'BAD_REQUEST',
-      message: `Permission for ${new URL(baseUrl).host} not granted. Re-open Settings to re-grant access.`,
-    });
-  }
 
   const headers = {
     'content-type': 'application/json',

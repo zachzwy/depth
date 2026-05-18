@@ -202,7 +202,7 @@ export const DEFAULT_HOSTED_ANON_KEY =
   'sb_publishable_4lzg-NNYPLLjG_EgyaBBDg_zKVgFuWn';
 
 export const DEFAULTS = {
-  providerMode: 'custom',
+  providerMode: 'hosted',
   providerId: 'openrouter',
   apiKey: '',
   model: '',

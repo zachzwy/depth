@@ -30,6 +30,7 @@ async function signedInSettings(overrides = {}) {
 
 beforeEach(() => {
   vi.spyOn(globalThis, 'fetch');
+  chrome.permissions._grant('http://localhost:54321/*');
 });
 
 afterEach(() => {

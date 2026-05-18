@@ -27,6 +27,7 @@
 // are a handful of POSTs that we can write directly.
 
 import { setSettings, getSettings } from '../lib/settings.js';
+import { assertHostedPermission } from './hosted-client.js';
 
 // Refresh slightly before exp to avoid edge-of-window failures.
 const EXPIRY_SAFETY_MARGIN_MS = 60 * 1000;
@@ -56,6 +57,11 @@ export async function ensureHostedSession(settings) {
   if (!authUrl || !anonKey) {
     throw new Error('Hosted auth misconfigured: missing base URL or anon key');
   }
+
+  // Refuse before any /auth/v1 fetch so a fresh install (no host
+  // permission yet) gets a HostedError the panel can render as the
+  // permission card instead of an opaque fetch failure.
+  await assertHostedPermission(settings);
 
   // Prefer a refresh-token exchange when we have one. Preserves auth.users.id
   // for both anonymous and permanent sessions; anonymous-signup fallback

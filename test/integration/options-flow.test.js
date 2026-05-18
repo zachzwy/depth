@@ -128,6 +128,7 @@ describe('options page save', () => {
 
   it('persists settings and clears the dirty flag on successful save', async () => {
     chrome.permissions._grant(PROVIDERS.openrouter.hostPermission);
+    await chrome.storage.local.set({ providerMode: 'custom' });
     globalThis.fetch.mockResolvedValueOnce(
       new Response(JSON.stringify({ data: [] }), { status: 200 }),
     );
@@ -160,31 +161,43 @@ describe('options page hosted mode', () => {
     radio.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
-  it('defaults to custom mode when nothing is stored', async () => {
+  function selectCustom() {
+    const radio = document.querySelector('input[name="providerMode"][value="custom"]');
+    radio.checked = true;
+    radio.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  it('defaults to hosted mode when nothing is stored', async () => {
     await importOptions();
     const checked = document.querySelector('input[name="providerMode"]:checked');
-    expect(checked.value).toBe('custom');
-    expect(document.getElementById('hosted-section').hidden).toBe(true);
-    expect(document.getElementById('custom-section').hidden).toBe(false);
+    expect(checked.value).toBe('hosted');
+    expect(document.getElementById('hosted-section').hidden).toBe(false);
+    expect(document.getElementById('custom-section').hidden).toBe(true);
   });
 
-  it('toggling to hosted shows hosted section, hides custom section', async () => {
+  it('toggling between modes swaps which section is shown', async () => {
     await importOptions();
+    selectCustom();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(document.getElementById('hosted-section').hidden).toBe(true);
+    expect(document.getElementById('custom-section').hidden).toBe(false);
+    expect(document.getElementById('dirty-flag').hidden).toBe(false);
+
     selectHosted();
     await new Promise((r) => setTimeout(r, 0));
     expect(document.getElementById('hosted-section').hidden).toBe(false);
     expect(document.getElementById('custom-section').hidden).toBe(true);
-    expect(document.getElementById('dirty-flag').hidden).toBe(false);
   });
 
   it('shows the hosted grant block until permission is granted', async () => {
     await importOptions();
-    selectHosted();
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
     const grantBlock = document.getElementById('hosted-grant-block');
     expect(grantBlock.hidden).toBe(false);
-    expect(document.getElementById('hosted-grant-hint').textContent).toContain('localhost');
+    expect(document.getElementById('hosted-grant-hint').textContent).toContain(
+      new URL(DEFAULT_HOSTED_BASE_URL).host,
+    );
 
     document.getElementById('hosted-grant-btn').click();
     await new Promise((r) => setTimeout(r, 0));

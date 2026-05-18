@@ -143,7 +143,8 @@ describe('service-worker handleGenerate', () => {
   });
 
   it('emits NO_API_KEY when generation is not configured', async () => {
-    // No settings saved — defaults are unconfigured.
+    // Custom mode with no API key / model — unconfigured.
+    await chrome.storage.local.set({ providerMode: 'custom' });
     await importWorker();
     const port = makePort();
     await fireConnect(port);

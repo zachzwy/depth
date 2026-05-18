@@ -29,6 +29,7 @@ import ConsentModal from './components/ConsentModal.jsx';
 import LoadingSkeleton from './components/LoadingSkeleton.jsx';
 import ErrorState from './components/ErrorState.jsx';
 import PaywallCard from './components/PaywallCard.jsx';
+import HostedPermissionCard from './components/HostedPermissionCard.jsx';
 import StaleBanner from './components/StaleBanner.jsx';
 import UnsupportedCard from './components/UnsupportedCard.jsx';
 import ExtractionStats from './components/ExtractionStats.jsx';
@@ -755,6 +756,38 @@ export default function Panel({ pageMeta, onClose }) {
   // before our async sendMessage completes, and the user gets two tabs.
   // When canUpgrade is true the handler invokes onUpgrade as fire-and-forget
   // and we surface failures via console.
+  // First-run path: hosted mode is the default, but Chrome's optional
+  // host permission isn't granted yet. We compute the origin pattern
+  // here (synchronously from settings) and send it in the message — the
+  // SW must call chrome.permissions.request with no preceding `await`,
+  // otherwise the user-activation token from this click is consumed
+  // before the API sees it and Chrome silently refuses.
+  async function onAllowHostedPermission() {
+    let originPattern;
+    try {
+      const baseUrl = (settings?.hostedBaseUrl ?? '').replace(/\/+$/, '');
+      if (!baseUrl) return false;
+      originPattern = new URL(baseUrl).origin + '/*';
+    } catch {
+      return false;
+    }
+    try {
+      const res = await chrome.runtime.sendMessage({
+        type: 'depth:request-hosted-permission',
+        originPattern,
+      });
+      if (res?.granted) {
+        setError(null);
+        await init();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.warn('[Depth panel] request-hosted-permission failed:', e?.message);
+      return false;
+    }
+  }
+
   const canUpgrade = settings?.hostedIsAnonymous === false;
   async function onUpgrade() {
     try {
@@ -929,8 +962,12 @@ export default function Panel({ pageMeta, onClose }) {
               <ConsentModal
                 extracted={extracted}
                 pageMeta={pageMeta}
-                provider={settings ? getProvider(settings) : null}
-                model={settings?.model}
+                provider={
+                  settings?.providerMode === 'hosted'
+                    ? { label: 'Depth Hosted' }
+                    : settings ? getProvider(settings) : null
+                }
+                model={settings?.providerMode === 'hosted' ? '' : settings?.model}
                 onAccept={onConsent}
                 onClose={onClose}
                 ui={ui}
@@ -948,7 +985,16 @@ export default function Panel({ pageMeta, onClose }) {
                 ui={ui}
               />
             )}
-            {status === 'error' && error?.code !== 'LIMIT_REACHED' && (
+            {status === 'error' && error?.code === 'HOSTED_PERMISSION_REQUIRED' && (
+              <HostedPermissionCard
+                onAllow={onAllowHostedPermission}
+                onOpenSettings={openSettings}
+                ui={ui}
+              />
+            )}
+            {status === 'error'
+              && error?.code !== 'LIMIT_REACHED'
+              && error?.code !== 'HOSTED_PERMISSION_REQUIRED' && (
               <ErrorState error={error} onRetry={init} ui={ui} />
             )}
 

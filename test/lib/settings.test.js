@@ -71,14 +71,19 @@ describe('getSettings + setSettings', () => {
 });
 
 describe('isGenerationConfigured', () => {
-  it('rejects an empty configuration', () => {
-    expect(isGenerationConfigured({ ...DEFAULTS })).toBe(false);
+  it('accepts the hosted defaults', () => {
+    expect(isGenerationConfigured({ ...DEFAULTS })).toBe(true);
+  });
+
+  it('rejects an empty custom-mode configuration', () => {
+    expect(isGenerationConfigured({ ...DEFAULTS, providerMode: 'custom' })).toBe(false);
   });
 
   it('accepts a configured OpenRouter user', () => {
     expect(
       isGenerationConfigured({
         ...DEFAULTS,
+        providerMode: 'custom',
         providerId: 'openrouter',
         apiKey: 'sk-test',
         model: 'openai/gpt-4.1-mini',
@@ -90,6 +95,7 @@ describe('isGenerationConfigured', () => {
     expect(
       isGenerationConfigured({
         ...DEFAULTS,
+        providerMode: 'custom',
         providerId: 'ollama',
         apiKey: '',
         model: 'llama3.2',
@@ -121,6 +127,7 @@ describe('isGenerationConfigured', () => {
     expect(
       isGenerationConfigured({
         ...DEFAULTS,
+        providerMode: 'custom',
         providerId: 'openrouter',
         apiKey: 'sk-test',
         model: '',
@@ -146,14 +153,25 @@ describe('providerFingerprint', () => {
   });
 
   it('is stable across calls with the same input', () => {
-    const s = { ...DEFAULTS, providerId: 'openrouter', model: 'openai/gpt-4.1-mini' };
+    const s = {
+      ...DEFAULTS,
+      providerMode: 'custom',
+      providerId: 'openrouter',
+      model: 'openai/gpt-4.1-mini',
+    };
     expect(providerFingerprint(s)).toBe(providerFingerprint(s));
   });
 });
 
 describe('hasConsentedToProvider', () => {
   it('returns true only when the stored fingerprint matches the live one', () => {
-    const s = { ...DEFAULTS, providerId: 'openrouter', model: 'm', preferredLanguage: 'English' };
+    const s = {
+      ...DEFAULTS,
+      providerMode: 'custom',
+      providerId: 'openrouter',
+      model: 'm',
+      preferredLanguage: 'English',
+    };
     expect(hasConsentedToProvider({ ...s, consentedProviderFingerprint: '' })).toBe(false);
     expect(
       hasConsentedToProvider({ ...s, consentedProviderFingerprint: providerFingerprint(s) }),

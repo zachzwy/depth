@@ -103,6 +103,29 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     })();
     return true;
   }
+  if (msg?.type === 'depth:request-hosted-permission') {
+    // The user gesture from the panel button carries into this handler,
+    // but ONLY for the synchronous portion. Any `await` before calling
+    // chrome.permissions.request consumes the activation token and Chrome
+    // will silently refuse without showing the dialog. The panel passes
+    // `originPattern` in the message so we can call request() directly.
+    const pattern = msg.originPattern;
+    if (!pattern) {
+      sendResponse({ granted: false, code: 'BAD_REQUEST', message: 'No origin pattern' });
+      return;
+    }
+    chrome.permissions
+      .request({ origins: [pattern] })
+      .then((granted) => sendResponse({ granted }))
+      .catch((err) =>
+        sendResponse({
+          granted: false,
+          code: 'BAD_REQUEST',
+          message: err?.message ?? 'Permission request failed',
+        }),
+      );
+    return true;
+  }
   if (msg?.type === 'depth:probe-quiz') {
     (async () => {
       try {

@@ -143,7 +143,10 @@ describe('streamHosted (hosted-client)', () => {
     chrome.permissions._revokeAll();
     await expect(
       streamHosted({ kind: 'generate', settings: SETTINGS, body: {} }),
-    ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: /Permission for localhost/ });
+    ).rejects.toMatchObject({
+      code: 'HOSTED_PERMISSION_REQUIRED',
+      message: /Permission for localhost/,
+    });
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 

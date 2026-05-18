@@ -91,7 +91,8 @@ describe('Panel consent flow', () => {
   });
 
   it('shows SetupView when generation is not configured', async () => {
-    // No settings → unconfigured.
+    // Custom mode with no API key / model → unconfigured.
+    await setSettings({ providerMode: 'custom' });
     chrome.runtime.connect.mockImplementation(() => makePort());
 
     render(<Panel pageMeta={pageMeta} onClose={() => {}} />);

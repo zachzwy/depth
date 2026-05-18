@@ -186,6 +186,7 @@ describe('service-worker handleQuiz', () => {
   });
 
   it('emits NO_API_KEY when generation is not configured', async () => {
+    await chrome.storage.local.set({ providerMode: 'custom' });
     await importWorker();
     const port = makePort();
     await fireConnect(port);
