@@ -1107,9 +1107,6 @@ export default function Panel({ pageMeta, onClose }) {
         onOpenSettings={openSettings}
         onRegenerate={onRegenerate}
         canRegenerate={status === 'ready' || status === 'error'}
-        onShare={onShare}
-        canShare={canShare()}
-        shareTitle={shareDisabledReason()}
         dragHandlers={{
           onPointerDown: handleHeaderPointerDown,
           onPointerMove: handleHeaderPointerMove,
@@ -1279,8 +1276,11 @@ export default function Panel({ pageMeta, onClose }) {
           onSave={onSave}
           onUnsave={onUnsave}
           onOpenDeck={() => setView('deck')}
+          onShare={onShare}
           canSave={canSave()}
           isSaved={urlIsSaved}
+          canShare={canShare()}
+          shareTitle={shareDisabledReason()}
           ui={ui}
         />
       )}
