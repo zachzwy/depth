@@ -1,4 +1,5 @@
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
+import * as pdfjsWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs';
 import { arxivHtmlCandidates, parseArxivId } from '../lib/document-sources.js';
 
 const MIN_TEXT_LENGTH = 200;
@@ -66,9 +67,13 @@ async function extractPdfText({ url, title, signal }) {
     throw new Error('PDF is too large for this version of Depth');
   }
 
+  // MV3 service workers don't have a window/document for PDF.js to infer a
+  // worker URL from. Register the worker module in-process so PDF.js can use
+  // its fake-worker path without requiring GlobalWorkerOptions.workerSrc.
+  globalThis.pdfjsWorker ??= pdfjsWorker;
+
   const loadingTask = pdfjs.getDocument({
     data: new Uint8Array(bytes),
-    disableWorker: true,
     useWorkerFetch: false,
     isEvalSupported: false,
   });
