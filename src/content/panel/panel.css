@@ -431,6 +431,7 @@
 /* ----- content area ----- */
 
 .depth-panel__content {
+  position: relative;
   padding: 14px 18px 18px;
   overflow-y: auto;
   min-height: 0;
@@ -1229,6 +1230,63 @@
 
 .state--paywall .state__cta {
   text-decoration: none;
+}
+
+/* ----- share dialog overlay ----- */
+
+.share-dialog {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  z-index: 10;
+  padding: 14px 16px 16px;
+  background: var(--panel-elev, rgba(28, 30, 36, 0.96));
+  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.12));
+  border-radius: 10px;
+  box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  backdrop-filter: blur(12px);
+}
+
+.share-dialog__title {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.share-dialog__body {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+.share-dialog__url {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-2);
+  word-break: break-all;
+}
+
+.share-dialog__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.share-dialog__actions .state__cta:disabled,
+.share-dialog__actions .state__secondary:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .state__payload {

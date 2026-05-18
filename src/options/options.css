@@ -326,3 +326,53 @@ body { margin: 0; }
   font-size: 12px;
   line-height: 1.4;
 }
+
+/* ----- Community section (phase 6) ----- */
+
+.community-card {
+  margin-top: 18px;
+  padding: 16px 16px 18px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.community-card__title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.community-card__hint {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+.community-card__hint a {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong, rgba(255, 255, 255, 0.18));
+  text-underline-offset: 3px;
+}
+
+.community-card__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.community-card__check input[type='checkbox'] {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.community-card__check span {
+  line-height: 1.45;
+}

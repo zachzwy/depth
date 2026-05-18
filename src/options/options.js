@@ -47,6 +47,8 @@ const upgradePitch = document.getElementById('upgrade-pitch');
 const portalBtn = document.getElementById('portal-btn');
 const signoutBtn = document.getElementById('signout-btn');
 const billingError = document.getElementById('billing-error');
+const communityAutoPublishInput = document.getElementById('community-auto-publish');
+const communityUseCacheInput = document.getElementById('community-use-cache');
 
 function currentMode() {
   const checked = modeRadios.find((r) => r.checked);
@@ -455,6 +457,17 @@ portalBtn.addEventListener('click', async () => {
   }
 });
 
+// Community toggles persist immediately on change (no Save button) — the
+// rest of the form's snapshot-then-save pattern is geared toward the
+// fields that affect provider routing, where partial saves are
+// problematic. These two are independent.
+communityAutoPublishInput?.addEventListener('change', async () => {
+  await setSettings({ communityAutoPublish: communityAutoPublishInput.checked });
+});
+communityUseCacheInput?.addEventListener('change', async () => {
+  await setSettings({ communityUseCache: communityUseCacheInput.checked });
+});
+
 function captureSavedSnapshot() {
   savedSnapshot = currentSnapshot();
   dirtyFlag.hidden = true;
@@ -531,6 +544,12 @@ grantBtn.addEventListener('click', async () => {
   apiKeyInput.value = settings.apiKey;
   modelInput.value = settings.model;
   preferredLanguageInput.value = toSupportedLanguage(settings.preferredLanguage);
+  if (communityAutoPublishInput) {
+    communityAutoPublishInput.checked = Boolean(settings.communityAutoPublish);
+  }
+  if (communityUseCacheInput) {
+    communityUseCacheInput.checked = settings.communityUseCache !== false;
+  }
   applyModeVisibility();
   captureSavedSnapshot();
   await refreshModelUI();

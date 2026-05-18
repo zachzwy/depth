@@ -2,11 +2,12 @@ import { streamMessage } from './api.js';
 import { streamHosted, HostedError } from './hosted-client.js';
 import { ensureHostedSession, completeHostedSignupWithCaptcha, signInWithGoogle } from './hosted-auth.js';
 import { openCheckout, BillingError } from './billing.js';
+import { publishSummary as hostedPublishSummary, ShareError } from './hosted-share.js';
 import { extractPdfDocument } from './pdf.js';
 import { publicApiErrorMessage, shuffle, stripJsonWrapper, makeAbort } from './helpers.js';
 import contentScriptPath from '../content/content-script.js?script';
 import { getCached, setCached, clearCached } from './cache.js';
-import { getSettings, isGenerationConfigured, providerFingerprint, hasConsentedToProvider } from '../lib/settings.js';
+import { getSettings, setSettings, isGenerationConfigured, providerFingerprint, hasConsentedToProvider } from '../lib/settings.js';
 import { contentHash } from '../lib/content-hash.js';
 import {
   SYSTEM_1_3,
@@ -232,6 +233,43 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         }
       },
     );
+    return true;
+  }
+  if (msg?.type === 'depth:share-summary') {
+    // Publish the current panel snapshot to /community. The panel
+    // builds the payload from cached level-1-3 data; we just forward
+    // it to depth-api. On first success we stamp
+    // settings.communityPublishConsentAt so the next publish doesn't
+    // re-show the consent modal.
+    (async () => {
+      try {
+        const settings = await getSettings();
+        const { url, title, articleHash, payload } = msg;
+        const result = await hostedPublishSummary(settings, {
+          url,
+          title,
+          articleHash,
+          payload,
+        });
+        if (!settings.communityPublishConsentAt) {
+          await setSettings({ communityPublishConsentAt: Date.now() });
+        }
+        sendResponse({ ok: true, ...result });
+      } catch (err) {
+        const code =
+          err instanceof ShareError
+            ? err.code
+            : err instanceof HostedError
+              ? err.code
+              : 'UPSTREAM_FAILED';
+        sendResponse({
+          ok: false,
+          code,
+          message: err?.message ?? 'Share failed',
+          details: err?.details,
+        });
+      }
+    })();
     return true;
   }
   if (msg?.type === 'depth:probe-quiz') {

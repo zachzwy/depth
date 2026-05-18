@@ -227,6 +227,20 @@ export const DEFAULTS = {
   hostedTier: 'free',
   hostedSubscriptionStatus: '',
   hostedCurrentPeriodEnd: '',
+  // Community share settings (phase 6).
+  // - communityAutoPublish: bypass the per-publish consent modal after
+  //   the user opted in once. Default OFF; the panel surfaces an
+  //   "Always publish" button alongside the one-shot consent flow.
+  // - communityUseCache: opt-in to fetching a published community
+  //   version on panel open to skip the quota cost. Default ON so first-
+  //   run users get the value automatically; the consent here is weak
+  //   because we read a public page, we don't expose user data.
+  // - communityPublishConsentAt: ms-since-epoch timestamp of the FIRST
+  //   successful publish. Acts as the "user has acknowledged the
+  //   publishing-makes-it-public dialog" flag.
+  communityAutoPublish: false,
+  communityUseCache: true,
+  communityPublishConsentAt: 0,
 };
 
 const STORAGE_AREA = 'local';

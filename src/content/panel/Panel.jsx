@@ -10,6 +10,7 @@ import {
   getProvider,
 } from '../../lib/settings.js';
 import { getSession, saveSession, clearSession } from '../../lib/session.js';
+import { contentHash } from '../../lib/content-hash.js';
 import { addToDeck, getDeck, removeFromDeckByUrl, removeFromDeckById, updateInDeck } from '../../lib/deck.js';
 import { glanceData, summaryData, readData } from './level-data.js';
 import { getUi } from '../../lib/i18n/index.js';
@@ -33,6 +34,7 @@ import HostedPermissionCard from './components/HostedPermissionCard.jsx';
 import CaptchaCard from './components/CaptchaCard.jsx';
 import StaleBanner from './components/StaleBanner.jsx';
 import UnsupportedCard from './components/UnsupportedCard.jsx';
+import ShareDialog from './components/ShareDialog.jsx';
 import ExtractionStats from './components/ExtractionStats.jsx';
 import DeckView from './components/DeckView.jsx';
 
@@ -112,6 +114,15 @@ export default function Panel({ pageMeta, onClose }) {
   // Saved-deck cache (full list; refreshed on mount and after save)
   const [deck, setDeck] = useState([]);
   const urlIsSaved = deck.some((c) => c?.source?.url === pageMeta.url);
+
+  // Share-to-community state. 'idle' hides the overlay; everything else
+  // renders ShareDialog over the panel body. `shareConsentRequired` is
+  // sampled once when the user clicks Share so toggling `Always` mid-
+  // flow doesn't change the dialog shape.
+  const [shareStatus, setShareStatus] = useState('idle');
+  const [shareConsentRequired, setShareConsentRequired] = useState(false);
+  const [shareResult, setShareResult] = useState(null);
+  const [shareError, setShareError] = useState(null);
 
   // Quiz state
   const [quizData, setQuizData] = useState(null);
@@ -903,6 +914,109 @@ export default function Panel({ pageMeta, onClose }) {
     setDeck(await getDeck());
   }
 
+  // ----- Share to community -----
+
+  function canShare() {
+    if (level > 3) return false; // Glance/Summary/Read only.
+    if (!data?.glance || !data?.summary || !data?.read) return false;
+    if (settings?.providerMode !== 'hosted') return false;
+    return true;
+  }
+
+  function shareDisabledReason() {
+    if (level > 3) return ui.shareDisabledLevel;
+    if (!data?.glance || !data?.summary || !data?.read) return ui.shareDisabledNoData;
+    return ui.share;
+  }
+
+  async function publishShare({ always } = {}) {
+    setShareStatus('publishing');
+    setShareError(null);
+    try {
+      const payload = {
+        keyTerms: data?.keyTerms ?? [],
+        glance: data?.glance ?? {},
+        summary: data?.summary ?? {},
+        read: data?.read ?? {},
+      };
+      const articleHash = await contentHash(
+        extracted?.title ?? pageMeta.title ?? '',
+        extracted?.text ?? '',
+      );
+      const res = await chrome.runtime.sendMessage({
+        type: 'depth:share-summary',
+        url: pageMeta.url,
+        title: extracted?.title ?? pageMeta.title ?? '',
+        articleHash,
+        payload,
+      });
+      if (!res?.ok) {
+        setShareError({
+          code: res?.code ?? 'UPSTREAM_FAILED',
+          message: res?.message ?? ui.shareFailed,
+        });
+        setShareStatus('error');
+        return;
+      }
+      if (always) {
+        await setSettings({ communityAutoPublish: true });
+      }
+      setShareResult({ slug: res.slug, shareUrl: res.shareUrl });
+      try {
+        await navigator.clipboard.writeText(res.shareUrl);
+      } catch {
+        // Clipboard refused; the dialog still shows the URL with a Copy button.
+      }
+      setShareStatus('success');
+    } catch (err) {
+      setShareError({ code: 'UPSTREAM_FAILED', message: err?.message ?? ui.shareFailed });
+      setShareStatus('error');
+    }
+  }
+
+  function onShare() {
+    if (!canShare()) return;
+    const consentRequired =
+      !settings?.communityPublishConsentAt && !settings?.communityAutoPublish;
+    setShareConsentRequired(consentRequired);
+    setShareResult(null);
+    setShareError(null);
+    if (consentRequired) {
+      // Show the consent dialog first; user clicks Publish or Always.
+      setShareStatus('consent');
+    } else {
+      // User has opted in before — go straight to publish.
+      setShareStatus('publishing');
+      publishShare({ always: false });
+    }
+  }
+
+  function onShareConfirm() {
+    if (shareStatus === 'error') {
+      // "Try again" branch: re-attempt with the same always-flag we had.
+      publishShare({ always: false });
+      return;
+    }
+    publishShare({ always: false });
+  }
+
+  function onShareAlways() {
+    publishShare({ always: true });
+  }
+
+  async function onShareCopy() {
+    if (!shareResult?.shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareResult.shareUrl);
+    } catch {
+      // Clipboard refused; nothing else to do here.
+    }
+  }
+
+  function onShareClose() {
+    setShareStatus('idle');
+  }
+
   async function onUnsave() {
     if (!urlIsSaved) return;
     setDeck(await removeFromDeckByUrl(pageMeta.url));
@@ -993,6 +1107,9 @@ export default function Panel({ pageMeta, onClose }) {
         onOpenSettings={openSettings}
         onRegenerate={onRegenerate}
         canRegenerate={status === 'ready' || status === 'error'}
+        onShare={onShare}
+        canShare={canShare()}
+        shareTitle={shareDisabledReason()}
         dragHandlers={{
           onPointerDown: handleHeaderPointerDown,
           onPointerMove: handleHeaderPointerMove,
@@ -1028,6 +1145,19 @@ export default function Panel({ pageMeta, onClose }) {
       )}
 
       <div class="depth-panel__content">
+        {view === 'main' && shareStatus !== 'idle' && (
+          <ShareDialog
+            status={shareStatus}
+            consentRequired={shareConsentRequired}
+            shareUrl={shareResult?.shareUrl ?? ''}
+            errorMessage={shareError?.message ?? ''}
+            onConfirm={onShareConfirm}
+            onAlways={onShareAlways}
+            onCopy={onShareCopy}
+            onClose={onShareClose}
+            ui={ui}
+          />
+        )}
         {view === 'deck' ? (
           <DeckView
             deck={deck}
