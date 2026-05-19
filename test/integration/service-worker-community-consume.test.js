@@ -105,6 +105,50 @@ describe('depth:probe-community handler', () => {
   });
 });
 
+describe('depth:probe-cache-13 handler', () => {
+  it('returns {cached:false} when nothing is stored', async () => {
+    await setupHosted();
+
+    await importWorker();
+    const reply = await fireMessage({
+      type: 'depth:probe-cache-13',
+      title: 'A',
+      text: 'body',
+    });
+    expect(reply).toEqual({ cached: false });
+  });
+
+  it('returns {cached:true, data} when the same title+text is cached', async () => {
+    await setupHosted();
+
+    // Use the same contentHash + setCached the SW uses internally so we
+    // exercise the real cache path rather than reaching into storage by
+    // hand-rolled keys.
+    const { contentHash } = await import('../../src/lib/content-hash.js');
+    const { providerFingerprint } = await import('../../src/lib/settings.js');
+    const { PROMPT_VERSION } = await import('../../src/lib/prompts.js');
+    const { setCached } = await import('../../src/background/cache.js');
+    const settings = await (await import('../../src/lib/settings.js')).getSettings();
+    const hash = await contentHash('A', 'body', providerFingerprint(settings), PROMPT_VERSION);
+    const stored = {
+      keyTerms: [],
+      glance: { sentence: 's' },
+      summary: { bullets: ['b'] },
+      read: { sections: [{ heading: 'h', paragraphs: ['p'] }] },
+    };
+    await setCached(hash, stored, '1-3');
+
+    await importWorker();
+    const reply = await fireMessage({
+      type: 'depth:probe-cache-13',
+      title: 'A',
+      text: 'body',
+    });
+    expect(reply.cached).toBe(true);
+    expect(reply.data).toEqual(stored);
+  });
+});
+
 describe('depth:fetch-community-summary handler', () => {
   it('returns {ok:true, ...row} on a hit', async () => {
     await setupHosted();

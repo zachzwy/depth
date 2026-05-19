@@ -29,8 +29,12 @@ export const en = {
   // Split into pieces so we can inline a link on "community version".
   communityHydratedPrefix: 'Reading the ',
   communityHydratedLink: 'community version',
-  communityHydratedSuffix: '. Generate fresh to use your own quota.',
+  communityHydratedSuffix: " — doesn't count toward your daily limit. Generate fresh to use your own quota.",
   communityHydrateFailed: 'Could not load the community version. Generating fresh instead.',
+  // Shown when the panel hydrates from a local content-hash cache hit
+  // (same article, same device, within the 7-day TTL). Reassures the
+  // user that re-opening a previously-read page doesn't burn quota.
+  localCacheLoaded: "Loaded from your local cache — doesn't count toward today's quota.",
   saveToDeck: 'Save to deck',
   saved: 'Saved',
   openDeck: 'Open deck',

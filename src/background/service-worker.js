@@ -320,6 +320,29 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     })();
     return true;
   }
+  if (msg?.type === 'depth:probe-cache-13') {
+    // Panel asks "do we already have a fresh local cache for this URL's
+    // level-1-3 content?". If yes, the panel hydrates directly and
+    // skips both the community probe and a generation round trip,
+    // because the user has already paid for this article on this
+    // device and the local cache hasn't expired.
+    (async () => {
+      try {
+        const settings = await getSettings();
+        const hash = await contentHash(
+          msg.title ?? '',
+          msg.text ?? '',
+          providerFingerprint(settings),
+          PROMPT_VERSION,
+        );
+        const cached = await getCached(hash, '1-3');
+        sendResponse(cached ? { cached: true, data: cached } : { cached: false });
+      } catch (e) {
+        sendResponse({ cached: false, error: String(e?.message) });
+      }
+    })();
+    return true;
+  }
   if (msg?.type === 'depth:probe-quiz') {
     (async () => {
       try {

@@ -132,6 +132,12 @@ export default function Panel({ pageMeta, onClose }) {
   const [communityStatus, setCommunityStatus] = useState('idle');
   const [communityVersions, setCommunityVersions] = useState([]);
 
+  // `true` when this URL was hydrated from the local content-hash cache
+  // (no generation round trip, no quota burn). Drives the small "no
+  // quota used" badge. Reset on every URL change + on regenerate so
+  // navigating between cached and fresh URLs reflects the right state.
+  const [loadedFromLocalCache, setLoadedFromLocalCache] = useState(false);
+
   // Quiz state
   const [quizData, setQuizData] = useState(null);
   const [quizStatus, setQuizStatus] = useState('idle');
@@ -206,10 +212,12 @@ export default function Panel({ pageMeta, onClose }) {
   const init = useCallback(async () => {
     const settings = await getSettings();
     setSettingsState(settings);
-    // Reset community-banner state on every (re-)init so a previous URL's
-    // banner doesn't bleed across navigation. Versions are URL-specific.
+    // Reset community-banner + local-cache state on every (re-)init
+    // so a previous URL's banner doesn't bleed across navigation, and
+    // the cache notice only shows after a fresh-this-URL probe hit.
     setCommunityStatus('idle');
     setCommunityVersions([]);
+    setLoadedFromLocalCache(false);
 
     // Extract first so the consent modal (and any future view) has content
     // to render even if the user has just saved settings for the first time.
@@ -255,6 +263,28 @@ export default function Panel({ pageMeta, onClose }) {
     }
     generatedForUrl.current = pageMeta.url;
     setStaleUrl(null);
+
+    // Local cache shortcut: if the user already generated this URL on
+    // this device and the local cache row hasn't expired, hydrate
+    // directly and skip both the community probe AND a generation
+    // round trip. Saves quota AND avoids a "community version
+    // available" banner the user doesn't need — they already have
+    // their own copy.
+    try {
+      const cacheProbe = await chrome.runtime.sendMessage({
+        type: 'depth:probe-cache-13',
+        title: ext.title,
+        text: ext.text,
+      });
+      if (cacheProbe?.cached && cacheProbe.data) {
+        setData(cacheProbe.data);
+        setStatus('ready');
+        setLoadedFromLocalCache(true);
+        return;
+      }
+    } catch (err) {
+      console.warn('[Depth panel] local cache probe failed:', err?.message);
+    }
 
     // Community probe: before burning quota, check whether someone has
     // already published a summary of this URL. Only the panel-side
@@ -543,6 +573,7 @@ export default function Panel({ pageMeta, onClose }) {
     setDiveStatus('idle');
     setDiveInput('');
     setError(null);
+    setLoadedFromLocalCache(false);
   }
 
   async function onConsent() {
@@ -1236,6 +1267,12 @@ export default function Panel({ pageMeta, onClose }) {
               ui={ui}
             />
           )}
+        {view === 'main' && loadedFromLocalCache && (
+          <div class="cache-notice" role="status">
+            <span class="cache-notice__pip" aria-hidden="true" />
+            <span>{ui.localCacheLoaded}</span>
+          </div>
+        )}
         {view === 'main' && shareStatus !== 'idle' && (
           <ShareDialog
             status={shareStatus}

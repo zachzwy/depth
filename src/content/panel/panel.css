@@ -1420,6 +1420,31 @@
   color: var(--text);
 }
 
+/* ----- local-cache hit notice (sibling to community banner) ----- */
+
+.cache-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--ok, oklch(0.78 0.12 155));
+  border-radius: 6px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-2);
+}
+
+.cache-notice__pip {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ok, oklch(0.78 0.12 155));
+  flex-shrink: 0;
+}
+
 .state__payload {
   margin: 0;
   padding: 10px 12px;
