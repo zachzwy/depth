@@ -40,4 +40,24 @@ describe('readData', () => {
 
     expect(data.stats.terms).toBe(0);
   });
+
+  it('normalizes partial Read sections without paragraph arrays', () => {
+    const data = readData({
+      keyTerms: [{ label: 'Transformer', definition: 'A sequence model.' }],
+      read: {
+        sections: [
+          { heading: 'Streaming section' },
+          { heading: 'String paragraph', paragraphs: 'Transformer appears here.' },
+          { heading: 'Mixed', paragraphs: ['Transformer appears again.', null, 42] },
+        ],
+      },
+    });
+
+    expect(data.sections).toEqual([
+      { heading: 'Streaming section', paragraphs: [] },
+      { heading: 'String paragraph', paragraphs: ['Transformer appears here.'] },
+      { heading: 'Mixed', paragraphs: ['Transformer appears again.'] },
+    ]);
+    expect(data.stats.terms).toBe(1);
+  });
 });

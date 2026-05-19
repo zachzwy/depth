@@ -18,10 +18,10 @@ export default function ReadView({ data, ui }) {
         </span>
       </div>
 
-      {data.sections.map((s, i) => (
+      {(data.sections ?? []).map((s, i) => (
         <section class="read__section" key={i}>
           <h3 class="read__heading">{s.heading}</h3>
-          {s.paragraphs.map((p, j) => (
+          {(s.paragraphs ?? []).map((p, j) => (
             <p class="read__paragraph" key={j}>
               {renderWithTerms(p, data.terms)}
             </p>

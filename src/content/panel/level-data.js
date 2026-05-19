@@ -32,7 +32,7 @@ export function summaryData(d) {
 
 export function readData(d, stats, extractedText) {
   const base = stats ?? { scale: '—' };
-  const sections = d?.read?.sections ?? [];
+  const sections = normalizeReadSections(d?.read?.sections);
   const terms = d?.keyTerms ?? [];
   const originalLen = extractedText?.length ?? 0;
   const readLen = sections.reduce(
@@ -48,6 +48,20 @@ export function readData(d, stats, extractedText) {
     sections,
     terms,
   };
+}
+
+function normalizeReadSections(sections) {
+  if (!Array.isArray(sections)) return [];
+  return sections.map((section) => ({
+    heading: section?.heading ?? '',
+    paragraphs: normalizeParagraphs(section?.paragraphs),
+  }));
+}
+
+function normalizeParagraphs(paragraphs) {
+  if (Array.isArray(paragraphs)) return paragraphs.filter((p) => typeof p === 'string');
+  if (typeof paragraphs === 'string' && paragraphs.trim()) return [paragraphs];
+  return [];
 }
 
 function countReadTerms(sections, terms) {
