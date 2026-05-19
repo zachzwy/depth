@@ -127,6 +127,92 @@ describe('extractPage fallback containers', () => {
     expect(extracted.text).toBe('');
   });
 
+  it('marks direct audio URLs as needing a transcript', () => {
+    vi.stubGlobal('location', { href: 'https://cdn.example.com/podcast/episode.mp3' });
+    document.title = 'episode.mp3';
+    document.body.innerHTML = '<main><h1>Episode audio</h1></main>';
+
+    const extracted = extractPage();
+
+    expect(extracted.classification).toEqual({
+      kind: 'media',
+      sourceType: 'audio',
+      reason: 'transcript-required',
+    });
+    expect(extracted.sourceUrl).toBe('https://cdn.example.com/podcast/episode.mp3');
+    expect(extracted.sourceLabel).toBe('Audio');
+    expect(extracted.text).toBe('');
+  });
+
+  it('extracts visible podcast transcript pages before generic article parsing', () => {
+    vi.stubGlobal('location', { href: 'https://example.com/podcast/episode-1' });
+    document.title = 'Episode 1';
+    document.body.innerHTML = `
+      <nav>Episodes Subscribe Sponsors</nav>
+      <section id="episode-transcript">
+        <h2>Transcript</h2>
+        <p>
+          Host: Today we explain how careful reading tools can preserve attention
+          while helping people understand long recordings. ${'The guest connects note taking, summaries, and better questions into one learning loop. '.repeat(10)}
+        </p>
+      </section>
+    `;
+
+    const extracted = extractPage();
+
+    expect(extracted.classification).toEqual({
+      kind: 'article',
+      sourceType: 'transcript',
+      sourceKind: 'transcript',
+    });
+    expect(extracted.sourceLabel).toBe('Transcript');
+    expect(extracted.text).toContain('careful reading tools');
+    expect(extracted.text).not.toContain('Episodes Subscribe');
+  });
+
+  it('extracts visible YouTube transcripts only when transcript text is present', () => {
+    vi.stubGlobal('location', { href: 'https://www.youtube.com/watch?v=abc123' });
+    document.title = 'Talk - YouTube';
+    document.body.innerHTML = `
+      <ytd-transcript-renderer>
+        <ytd-transcript-segment-renderer>
+          <div class="segment-timestamp">0:01</div>
+          <yt-formatted-string class="segment-text">
+            The speaker frames the talk around attention and comprehension.
+            ${'Each section turns a long recording into claims the listener can question and reuse. '.repeat(10)}
+          </yt-formatted-string>
+        </ytd-transcript-segment-renderer>
+      </ytd-transcript-renderer>
+    `;
+
+    const extracted = extractPage();
+
+    expect(extracted.classification).toEqual({
+      kind: 'article',
+      sourceType: 'youtube-transcript',
+      sourceKind: 'transcript',
+    });
+    expect(extracted.sourceLabel).toBe('YouTube transcript');
+    expect(extracted.text).toContain('attention and comprehension');
+    expect(extracted.text).not.toContain('0:01');
+  });
+
+  it('marks YouTube pages without visible transcript text as unsupported media', () => {
+    vi.stubGlobal('location', { href: 'https://www.youtube.com/watch?v=abc123' });
+    document.title = 'Talk - YouTube';
+    document.body.innerHTML = '<main><h1>Talk</h1><button>Show transcript</button></main>';
+
+    const extracted = extractPage();
+
+    expect(extracted.classification).toEqual({
+      kind: 'media',
+      sourceType: 'youtube-video',
+      reason: 'transcript-required',
+    });
+    expect(extracted.sourceLabel).toBe('YouTube video');
+    expect(extracted.text).toBe('');
+  });
+
   it('marks known ebook pages with EPUB links for background extraction', () => {
     vi.stubGlobal('location', { href: 'https://www.gutenberg.org/ebooks/1342' });
     document.title = 'Pride and Prejudice by Jane Austen';

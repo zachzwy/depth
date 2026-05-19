@@ -129,7 +129,7 @@ describe('depth:probe-cache-13 handler', () => {
     const { PROMPT_VERSION } = await import('../../src/lib/prompts.js');
     const { setCached } = await import('../../src/background/cache.js');
     const settings = await (await import('../../src/lib/settings.js')).getSettings();
-    const hash = await contentHash('A', 'body', providerFingerprint(settings), PROMPT_VERSION);
+    const hash = await contentHash('A', 'body', providerFingerprint(settings), PROMPT_VERSION, 'article');
     const stored = {
       keyTerms: [],
       glance: { sentence: 's' },

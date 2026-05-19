@@ -59,6 +59,20 @@ describe('UnsupportedCard snapshots', () => {
     expect(container.innerHTML).toMatchSnapshot();
   });
 
+  it('media transcript-required variant (English)', () => {
+    const { container } = render(
+      <UnsupportedCard
+        extracted={fixture('media', {
+          sourceLabel: 'YouTube video',
+          classification: { kind: 'media', sourceType: 'youtube-video', reason: 'transcript-required' },
+        })}
+        onTryAnyway={() => {}}
+        ui={en}
+      />,
+    );
+    expect(container.innerHTML).toMatchSnapshot();
+  });
+
   it('feed variant (Simplified Chinese)', () => {
     const { container } = render(
       <UnsupportedCard extracted={fixture('feed')} onTryAnyway={() => {}} ui={zhHans} />,
@@ -80,6 +94,19 @@ describe('UnsupportedCard interactions', () => {
   it('omits the Try anyway link when no callback is provided', () => {
     const { queryByText } = render(
       <UnsupportedCard extracted={fixture('feed')} ui={en} />,
+    );
+    expect(queryByText(en.tryAnyway)).toBeNull();
+  });
+
+  it('omits the Try anyway link when a transcript is required', () => {
+    const { queryByText } = render(
+      <UnsupportedCard
+        extracted={fixture('media', {
+          classification: { kind: 'media', sourceType: 'audio', reason: 'transcript-required' },
+        })}
+        onTryAnyway={() => {}}
+        ui={en}
+      />,
     );
     expect(queryByText(en.tryAnyway)).toBeNull();
   });

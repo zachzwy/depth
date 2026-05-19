@@ -179,7 +179,7 @@ describe('service-worker handleQuiz', () => {
       model: 'openai/gpt-4.1-mini',
       preferredLanguage: 'English',
     };
-    const hash = await contentHash('T', 'body', providerFingerprint(settings), PROMPT_VERSION);
+    const hash = await contentHash('T', 'body', providerFingerprint(settings), PROMPT_VERSION, 'article');
     const all = await chrome.storage.local.get(null);
     expect(all[`depth:cache:quiz:${hash}`]).toBeTruthy();
     expect(all[`depth:cache:1-3:${hash}`]).toBeUndefined();

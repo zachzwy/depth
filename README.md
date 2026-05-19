@@ -14,7 +14,7 @@ MVP ships levels 1–5.
 
 ## Product focus
 
-Depth's MVP is article-first: it is designed for individual articles, essays, and long-form documentation pages. Feed pages, comment threads, dashboards, and app shells should not auto-generate by default, even if they contain text. The panel may offer "Try anyway" as an explicit user override, but automatic extraction should stay tuned for article-shaped reading surfaces.
+Depth's MVP is article-first: it is designed for individual articles, essays, long-form documentation pages, and transcript-backed audio/video pages. Feed pages, comment threads, dashboards, and app shells should not auto-generate by default, even if they contain text. The panel may offer "Try anyway" as an explicit user override, but automatic extraction should stay tuned for article-shaped or transcript-shaped reading surfaces.
 
 ## Supported reading surfaces
 
@@ -30,12 +30,14 @@ Depth currently supports these article-heavy formats:
 - **Jupyter notebooks**: direct `.ipynb` files and GitHub blob pages, extracting Markdown and raw cells as reading text.
 - **LaTeX source**: direct `.tex` files and GitHub blob pages, with common paper/article markup flattened into prose.
 - **reStructuredText**: direct `.rst` files and GitHub blob pages, with common Sphinx/docutils markup flattened into prose.
+- **Transcript-backed audio/video pages**: visible podcast/page transcripts and visible YouTube transcript panels are summarized as transcript sources, with transcript-aware prompting that ignores timestamps, filler, speaker scaffolding, intros/outros, and sponsorship boilerplate.
+- **Direct audio/video URLs**: direct `.mp3`, `.m4a`, `.wav`, `.aac`, `.ogg`, `.opus`, `.flac`, `.mp4`, `.m4v`, `.webm`, and `.mov` URLs are detected and reported clearly, but require an available transcript before Depth can summarize them.
 
 Known gaps and good future candidates:
 
 - **OCR PDFs**: scanned/image-only PDFs are detected today, but need a local WASM OCR runtime or a hosted OCR path before Depth can read their contents.
 - **Google Slides / PowerPoint**: should use deck-aware extraction and prompting rather than article extraction.
-- **Audio and video**: need transcript extraction or speech-to-text.
+- **Speech-to-text for audio/video**: direct media files are detected today, but arbitrary audio/video still needs hosted or local transcription before Depth can read the spoken content.
 - **Private Microsoft Word Online / SharePoint viewer pages**: direct `.docx` links work; full viewer/export auth needs a deeper integration.
 
 ## Development

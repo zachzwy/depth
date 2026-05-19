@@ -70,6 +70,14 @@ function needsBackgroundDocumentExtraction(ext) {
   return kind === 'pdf' || kind === 'document';
 }
 
+function sourceKindForExtraction(ext) {
+  const sourceKind = ext?.classification?.sourceKind;
+  const sourceType = ext?.classification?.sourceType ?? '';
+  return sourceKind === 'transcript' || sourceType.includes('transcript')
+    ? 'transcript'
+    : 'article';
+}
+
 export default function Panel({ pageMeta, onClose }) {
   // Levels 1-3 state
   const [level, setLevel] = useState(1);
@@ -182,6 +190,7 @@ export default function Panel({ pageMeta, onClose }) {
       title: ext.title,
       url: pageMeta.url,
       text: ext.text,
+      sourceKind: sourceKindForExtraction(ext),
       force,
     });
   }, [pageMeta.url]);
@@ -280,6 +289,7 @@ export default function Panel({ pageMeta, onClose }) {
         type: 'depth:probe-cache-13',
         title: ext.title,
         text: ext.text,
+        sourceKind: sourceKindForExtraction(ext),
       });
       if (cacheProbe?.cached && cacheProbe.data) {
         setData(cacheProbe.data);
@@ -444,6 +454,7 @@ export default function Panel({ pageMeta, onClose }) {
       title: extracted.title,
       url: pageMeta.url,
       text: extracted.text,
+      sourceKind: sourceKindForExtraction(extracted),
       keyTerms: data.keyTerms ?? [],
     });
   }, [extracted, data, pageMeta.url]);
@@ -465,6 +476,7 @@ export default function Panel({ pageMeta, onClose }) {
           type: 'depth:probe-quiz',
           title: extracted.title,
           text: extracted.text,
+          sourceKind: sourceKindForExtraction(extracted),
         });
         if (cancelled) return;
         if (res?.cached && res.data?.questions?.length) {
@@ -535,6 +547,7 @@ export default function Panel({ pageMeta, onClose }) {
       title: extracted.title,
       url: pageMeta.url,
       summary: data,
+      sourceKind: sourceKindForExtraction(extracted),
       skipOpeningTurn: hasExistingTurns,
     });
   }, [extracted, data, pageMeta.url, diveTurns]);

@@ -2,6 +2,10 @@ export function isPdfUrl(url) {
   return documentSourceFromUrl(url)?.sourceType === 'pdf';
 }
 
+export function isYouTubeUrl(url) {
+  return parseYouTubeUrl(url) !== null;
+}
+
 export function documentSourceFromUrl(url) {
   let parsed;
   try {
@@ -39,6 +43,16 @@ export function documentSourceFromUrl(url) {
       kind: 'document',
       sourceType: 'epub',
       label: 'EPUB',
+    };
+  }
+
+  const mediaCandidate = mediaCandidates(url)[0];
+  if (mediaCandidate) {
+    return {
+      kind: 'media',
+      sourceType: mediaCandidate.sourceType,
+      label: mediaCandidate.label,
+      url: mediaCandidate.url,
     };
   }
 
@@ -223,6 +237,49 @@ export function rstCandidates(url) {
   return textLikeCandidates(url, RST_PATH_RE, 'reStructuredText');
 }
 
+export function mediaCandidates(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return [];
+  }
+
+  const path = parsed.pathname;
+  if (AUDIO_PATH_RE.test(path)) {
+    return [{ url: parsed.href, label: 'Audio', sourceType: 'audio' }];
+  }
+  if (VIDEO_PATH_RE.test(path)) {
+    return [{ url: parsed.href, label: 'Video', sourceType: 'video' }];
+  }
+  return [];
+}
+
+export function parseYouTubeUrl(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  const host = parsed.hostname.toLowerCase().replace(/^www\./, '').replace(/^m\./, '');
+  if (host === 'youtu.be') {
+    const id = parsed.pathname.split('/').filter(Boolean)[0];
+    return id ? { id } : null;
+  }
+  if (host !== 'youtube.com' && host !== 'youtube-nocookie.com') return null;
+
+  if (parsed.pathname === '/watch') {
+    const id = parsed.searchParams.get('v');
+    return id ? { id } : null;
+  }
+  const shorts = parsed.pathname.match(/^\/shorts\/([^/?#]+)/);
+  if (shorts) return { id: shorts[1] };
+  const embed = parsed.pathname.match(/^\/embed\/([^/?#]+)/);
+  if (embed) return { id: embed[1] };
+  return null;
+}
+
 function looksLikeEpubPath(pathname) {
   return /\.epub(?:3)?(?:[._-](?:images|noimages))?$/i.test(pathname);
 }
@@ -232,6 +289,8 @@ const TEXT_PATH_RE = /\.(?:txt|text)$/i;
 const NOTEBOOK_PATH_RE = /\.ipynb$/i;
 const LATEX_PATH_RE = /\.tex$/i;
 const RST_PATH_RE = /\.rst$/i;
+const AUDIO_PATH_RE = /\.(?:mp3|m4a|aac|wav|ogg|oga|opus|flac)(?:$|[?#])/i;
+const VIDEO_PATH_RE = /\.(?:mp4|m4v|webm|mov)(?:$|[?#])/i;
 
 function textLikeCandidates(url, pathPattern, label) {
   let parsed;

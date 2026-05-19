@@ -396,6 +396,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           msg.text ?? '',
           providerFingerprint(settings),
           PROMPT_VERSION,
+          normalizeSourceKind(msg.sourceKind),
         );
         const cached = await getCached(hash, '1-3');
         sendResponse(cached ? { cached: true, data: cached } : { cached: false });
@@ -409,7 +410,13 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     (async () => {
       try {
         const settings = await getSettings();
-        const hash = await contentHash(msg.title, msg.text, providerFingerprint(settings), PROMPT_VERSION);
+        const hash = await contentHash(
+          msg.title,
+          msg.text,
+          providerFingerprint(settings),
+          PROMPT_VERSION,
+          normalizeSourceKind(msg.sourceKind),
+        );
         const cached = await getCached(hash, 'quiz');
         sendResponse(cached ? { cached: true, data: cached } : { cached: false });
       } catch (e) {
@@ -434,6 +441,10 @@ function safePost(port, msg) {
   }
 }
 
+function normalizeSourceKind(sourceKind) {
+  return sourceKind === 'transcript' ? 'transcript' : 'article';
+}
+
 // Pure helpers (publicApiErrorMessage, shuffle, stripJsonWrapper, makeAbort)
 // live in ./helpers.js and are imported above.
 
@@ -445,13 +456,14 @@ function handleGenerate(port) {
     if (msg?.type !== 'start') return;
     try {
       const { title, url, text, force } = msg;
+      const sourceKind = normalizeSourceKind(msg.sourceKind);
       console.log('[Depth] handleGenerate: textChars=' + text.length, force ? '(force)' : '');
 
       const settings = await getSettings();
       if (!isGenerationConfigured(settings)) return safePost(port, { type: 'error', code: 'NO_API_KEY' });
       if (!hasConsentedToProvider(settings)) return safePost(port, { type: 'error', code: 'NO_PROVIDER_CONSENT' });
 
-      const hash = await contentHash(title, text, providerFingerprint(settings), PROMPT_VERSION);
+      const hash = await contentHash(title, text, providerFingerprint(settings), PROMPT_VERSION, sourceKind);
       if (force) {
         await Promise.all([clearCached(hash, '1-3'), clearCached(hash, 'quiz')]);
       }
@@ -468,7 +480,7 @@ function handleGenerate(port) {
         const { data } = await streamHosted({
           kind: 'generate',
           settings,
-          body: { title, url, text, preferredLanguage: settings.preferredLanguage },
+          body: { title, url, text, sourceKind, preferredLanguage: settings.preferredLanguage },
           signal: controller.signal,
           onPartial: (data) => {
             if (getAborted()) return;
@@ -486,7 +498,13 @@ function handleGenerate(port) {
       const fullText = await streamMessage({
         settings,
         system: SYSTEM_1_3,
-        messages: buildUserMessage1_3({ title, url, text, preferredLanguage: settings.preferredLanguage }),
+        messages: buildUserMessage1_3({
+          title,
+          url,
+          text,
+          sourceKind,
+          preferredLanguage: settings.preferredLanguage,
+        }),
         signal: controller.signal,
         onPartial: (data) => {
           if (getAborted()) return;
@@ -540,11 +558,12 @@ function handleQuiz(port) {
   port.onMessage.addListener(async (msg) => {
     if (msg?.type !== 'start') return;
     const { title, url, text, keyTerms } = msg;
+    const sourceKind = normalizeSourceKind(msg.sourceKind);
     const settings = await getSettings();
     if (!isGenerationConfigured(settings)) return safePost(port, { type: 'error', code: 'NO_API_KEY' });
     if (!hasConsentedToProvider(settings)) return safePost(port, { type: 'error', code: 'NO_PROVIDER_CONSENT' });
 
-    const hash = await contentHash(title, text, providerFingerprint(settings), PROMPT_VERSION);
+    const hash = await contentHash(title, text, providerFingerprint(settings), PROMPT_VERSION, sourceKind);
     const cached = await getCached(hash, 'quiz');
     if (cached) {
       return safePost(port, { type: 'done', data: cached, fromCache: true });
@@ -557,7 +576,7 @@ function handleQuiz(port) {
         const { data } = await streamHosted({
           kind: 'quiz',
           settings,
-          body: { title, url, text, keyTerms, preferredLanguage: settings.preferredLanguage },
+          body: { title, url, text, sourceKind, keyTerms, preferredLanguage: settings.preferredLanguage },
           signal: controller.signal,
           onPartial: (data) => {
             if (getAborted()) return;
@@ -575,7 +594,14 @@ function handleQuiz(port) {
       await streamMessage({
         settings,
         system: SYSTEM_QUIZ,
-        messages: buildUserMessageQuiz({ title, url, text, keyTerms, preferredLanguage: settings.preferredLanguage }),
+        messages: buildUserMessageQuiz({
+          title,
+          url,
+          text,
+          sourceKind,
+          keyTerms,
+          preferredLanguage: settings.preferredLanguage,
+        }),
         maxTokens: 3000,
         signal: controller.signal,
         onPartial: (data) => {
@@ -625,12 +651,14 @@ function handleDive(port) {
         title: msg.title,
         url: msg.url,
         summary: msg.summary,
+        sourceKind: normalizeSourceKind(msg.sourceKind),
         system:
           settings.providerMode === 'hosted'
             ? null
             : buildSystemDive({
                 title: msg.title,
                 summary: msg.summary,
+                sourceKind: normalizeSourceKind(msg.sourceKind),
                 preferredLanguage: settings.preferredLanguage,
               }),
       };
@@ -713,6 +741,7 @@ function handleDive(port) {
           title: context.title,
           url: context.url,
           summary: context.summary,
+          sourceKind: context.sourceKind,
           messages,
           preferredLanguage: context.settings.preferredLanguage,
         },

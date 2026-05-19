@@ -5,9 +5,12 @@ import {
   epubCandidates,
   googleDocTextCandidates,
   isPdfUrl,
+  isYouTubeUrl,
   latexCandidates,
   markdownCandidates,
+  mediaCandidates,
   notebookCandidates,
+  parseYouTubeUrl,
   parseArxivId,
   parseGoogleDoc,
   rstCandidates,
@@ -88,6 +91,31 @@ describe('document source URL helpers', () => {
       label: 'EPUB',
     });
     expect(epubCandidates(url)).toEqual([{ url, label: 'EPUB' }]);
+  });
+
+  it('detects direct audio and video URLs as media requiring transcripts', () => {
+    const audioUrl = 'https://cdn.example.com/podcast/episode-1.mp3?download=1';
+    expect(documentSourceFromUrl(audioUrl)).toEqual({
+      kind: 'media',
+      sourceType: 'audio',
+      label: 'Audio',
+      url: audioUrl,
+    });
+    expect(mediaCandidates('https://videos.example.com/talk.webm')).toEqual([
+      {
+        url: 'https://videos.example.com/talk.webm',
+        label: 'Video',
+        sourceType: 'video',
+      },
+    ]);
+  });
+
+  it('detects YouTube watch, short, embed, and shortlink URLs', () => {
+    expect(isYouTubeUrl('https://www.youtube.com/watch?v=abc123')).toBe(true);
+    expect(parseYouTubeUrl('https://youtu.be/abc123')).toEqual({ id: 'abc123' });
+    expect(parseYouTubeUrl('https://m.youtube.com/shorts/short123')).toEqual({ id: 'short123' });
+    expect(parseYouTubeUrl('https://www.youtube-nocookie.com/embed/embed123')).toEqual({ id: 'embed123' });
+    expect(isYouTubeUrl('https://vimeo.com/123')).toBe(false);
   });
 
   it('detects Project Gutenberg EPUB filenames', () => {

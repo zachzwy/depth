@@ -1,6 +1,6 @@
 import { getLanguage } from './i18n/index.js';
 
-export const PROMPT_VERSION = 'v3';
+export const PROMPT_VERSION = 'v4';
 
 function languageInstruction(language) {
   const { promptName, scriptNote } = getLanguage(language);
@@ -46,15 +46,34 @@ Rules:
 - Do not paraphrase any sentence closely. Restate ideas at a higher level of abstraction, in your own words. If a phrasing in the article is distinctive, name the idea rather than reproducing the phrasing.
 - Avoid trivia. Favor synthesis and understanding over recall of specific names, numbers, or dates unless those are central.`;
 
-export function buildUserMessage1_3({ title, url, text, preferredLanguage }) {
+function normalizeSourceKind(sourceKind) {
+  return sourceKind === 'transcript' ? 'transcript' : 'article';
+}
+
+function sourceInstruction(sourceKind) {
+  if (normalizeSourceKind(sourceKind) === 'transcript') {
+    return `Source type: transcript.
+Treat the source as a transcript of spoken audio or video. Summarize the ideas, claims, and explanations, not the turn-by-turn conversation structure. Ignore timestamps, greetings, sponsorships, repeated speaker labels, filler, and intro/outro boilerplate unless they are central to the content.`;
+  }
+  return 'Source type: article.';
+}
+
+function sourceLabel(sourceKind) {
+  return normalizeSourceKind(sourceKind) === 'transcript' ? 'TRANSCRIPT' : 'ARTICLE';
+}
+
+export function buildUserMessage1_3({ title, url, text, sourceKind = 'article', preferredLanguage }) {
+  const label = sourceLabel(sourceKind);
   return `${languageInstruction(preferredLanguage)}
 
-Article title: ${title}
-Article URL: ${url}
+${sourceInstruction(sourceKind)}
 
-ARTICLE BEGIN
+Source title: ${title}
+Source URL: ${url}
+
+${label} BEGIN
 ${text}
-ARTICLE END`;
+${label} END`;
 }
 
 export const SYSTEM_QUIZ = `You are Depth in Quiz mode. Write 5 multiple-choice questions about the article that test understanding, not recall.
@@ -81,24 +100,27 @@ Rules:
 - Forbidden patterns: "Which of the following…", "All of the above", "None of the above", "True or false".
 - Keep prompts under 25 words, choices under 20 words each.`;
 
-export function buildUserMessageQuiz({ title, url, text, keyTerms, preferredLanguage }) {
+export function buildUserMessageQuiz({ title, url, text, sourceKind = 'article', keyTerms, preferredLanguage }) {
   const termsBlock = (keyTerms ?? [])
     .map((t, i) => `${i}. ${t.label}: ${t.definition}`)
     .join('\n');
+  const label = sourceLabel(sourceKind);
   return `${languageInstruction(preferredLanguage)}
 
-Article title: ${title}
-Article URL: ${url}
+${sourceInstruction(sourceKind)}
+
+Source title: ${title}
+Source URL: ${url}
 
 KEY TERMS (already identified):
 ${termsBlock || '(none)'}
 
-ARTICLE BEGIN
+${label} BEGIN
 ${text}
-ARTICLE END`;
+${label} END`;
 }
 
-export const SYSTEM_DIVE = `You are Depth in Deep Dive mode — a Socratic tutor exploring an article with the reader.
+export const SYSTEM_DIVE = `You are Depth in Deep Dive mode — a Socratic tutor exploring a long-form source with the reader.
 
 Each turn, output a single JSON object — no preamble, no markdown fences:
 {
@@ -114,14 +136,15 @@ Rules:
 - One short paragraph per turn (≤3 sentences). End with a question that tests understanding.
 - Never give away an answer in a single turn. If the reader's answer is partial or off, nudge them with a follow-up — don't just correct.
 - Vary question type across turns: application, counter-factual, transfer, what-if, find-the-tension.
-- Stay grounded in the article you were given. Don't invent claims it doesn't make.
-- For the opening turn, pick the *most load-bearing* claim in the article and probe it.
+- Stay grounded in the source you were given. Don't invent claims it doesn't make.
+- For the opening turn, pick the *most load-bearing* claim in the source and probe it.
 - suggestedReplies: exactly 3, each ≤8 words. Each leads in a distinct direction.`;
 
-export function buildSystemDive({ title, summary, preferredLanguage }) {
+export function buildSystemDive({ title, summary, sourceKind = 'article', preferredLanguage }) {
   const glance = summary?.glance?.sentence ?? '';
   const bullets = (summary?.summary?.bullets ?? []).map((b) => `- ${b}`).join('\n');
-  const grounding = `Article: ${title}
+  const grounding = `Source type: ${normalizeSourceKind(sourceKind)}
+Source title: ${title}
 
 Central claim: ${glance}
 

@@ -24,8 +24,17 @@ describe('buildUserMessage1_3', () => {
     expect(msg).toContain('Hello');
     expect(msg).toContain('https://x');
     expect(msg).toContain('Body.');
+    expect(msg).toContain('Source type: article');
     expect(msg).toContain('ARTICLE BEGIN');
     expect(msg).toContain('ARTICLE END');
+  });
+
+  it('uses transcript labels and instructions for transcript sources', () => {
+    const msg = buildUserMessage1_3({ ...args, sourceKind: 'transcript' });
+    expect(msg).toContain('Source type: transcript');
+    expect(msg).toContain('Ignore timestamps');
+    expect(msg).toContain('TRANSCRIPT BEGIN');
+    expect(msg).toContain('TRANSCRIPT END');
   });
 
   it('embeds the English language instruction by default', () => {
@@ -69,6 +78,19 @@ describe('buildUserMessageQuiz', () => {
     const msg = buildUserMessageQuiz({ title: 'T', url: 'U', text: 'body', keyTerms: [], preferredLanguage: 'English' });
     expect(msg).toContain('(none)');
   });
+
+  it('uses transcript source framing for quiz prompts', () => {
+    const msg = buildUserMessageQuiz({
+      title: 'T',
+      url: 'U',
+      text: 'body',
+      sourceKind: 'transcript',
+      keyTerms: [],
+      preferredLanguage: 'English',
+    });
+    expect(msg).toContain('Source type: transcript');
+    expect(msg).toContain('TRANSCRIPT BEGIN');
+  });
 });
 
 describe('buildSystemDive', () => {
@@ -82,10 +104,21 @@ describe('buildSystemDive', () => {
       preferredLanguage: 'English',
     });
     expect(sys).toContain(SYSTEM_DIVE);
-    expect(sys).toContain('My Article');
+    expect(sys).toContain('Source title: My Article');
     expect(sys).toContain('Central claim.');
     expect(sys).toContain('- point a');
     expect(sys).toContain('- point b');
+  });
+
+  it('passes transcript source type into dive grounding', () => {
+    const sys = buildSystemDive({
+      title: 'My Transcript',
+      summary: { glance: { sentence: 'Central claim.' }, summary: { bullets: [] } },
+      sourceKind: 'transcript',
+      preferredLanguage: 'English',
+    });
+    expect(sys).toContain('Source type: transcript');
+    expect(sys).toContain('Source title: My Transcript');
   });
 
   it('handles missing glance and bullets gracefully', () => {

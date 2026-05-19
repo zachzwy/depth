@@ -1,5 +1,5 @@
 import { Readability, isProbablyReaderable } from '@mozilla/readability';
-import { documentSourceFromUrl } from '../lib/document-sources.js';
+import { documentSourceFromUrl, isYouTubeUrl } from '../lib/document-sources.js';
 
 const MIN_TEXT_LENGTH = 200;
 const MIN_FALLBACK_SCORE = 7;
@@ -13,6 +13,9 @@ export function extractPage() {
   if (documentSource) {
     return documentExtractionShell(documentSource);
   }
+
+  const transcriptExtraction = tryTranscriptExtraction(url);
+  if (transcriptExtraction) return transcriptExtraction;
 
   const linkedDocumentSource = findLinkedDocumentSource(url);
   if (linkedDocumentSource) {
@@ -49,6 +52,10 @@ export function extractPage() {
 }
 
 function documentExtractionShell(documentSource) {
+  if (documentSource.kind === 'media') {
+    return mediaTranscriptRequiredShell(documentSource);
+  }
+
   return {
     title: typeof document !== 'undefined' ? document.title : '',
     byline: null,
@@ -63,6 +70,137 @@ function documentExtractionShell(documentSource) {
       sourceType: documentSource.sourceType,
       reason: 'needs-background-extraction',
     },
+  };
+}
+
+function mediaTranscriptRequiredShell(source) {
+  return {
+    title: typeof document !== 'undefined' ? document.title : '',
+    byline: null,
+    siteName: null,
+    text: '',
+    wordCount: 0,
+    truncated: false,
+    sourceUrl: source.url,
+    sourceLabel: source.label,
+    classification: {
+      kind: 'media',
+      sourceType: source.sourceType,
+      reason: 'transcript-required',
+    },
+  };
+}
+
+function tryTranscriptExtraction(url) {
+  const youtube = isYouTubeUrl(url);
+  const transcript = findTranscriptText({ youtube });
+  if (transcript) {
+    const capped = capText(transcript);
+    return {
+      title: typeof document !== 'undefined' ? document.title : '',
+      byline: null,
+      siteName: null,
+      text: capped.text,
+      wordCount: countWords(capped.text),
+      truncated: capped.truncated,
+      sourceUrl: url,
+      sourceLabel: youtube ? 'YouTube transcript' : 'Transcript',
+      classification: {
+        kind: 'article',
+        sourceType: youtube ? 'youtube-transcript' : 'transcript',
+        sourceKind: 'transcript',
+      },
+    };
+  }
+
+  if (youtube) {
+    return mediaTranscriptRequiredShell({
+      url,
+      label: 'YouTube video',
+      sourceType: 'youtube-video',
+    });
+  }
+
+  return null;
+}
+
+function findTranscriptText({ youtube } = {}) {
+  if (typeof document === 'undefined') return null;
+
+  const youtubeSegments = collectYouTubeTranscriptSegments();
+  if (youtubeSegments.length > 0) {
+    const text = normalizeTranscriptText(youtubeSegments.join('\n'));
+    if (isUsefulTranscript(text)) return text;
+  }
+
+  const candidates = new Set();
+  for (const el of document.querySelectorAll('article, section, main, aside, div, details')) {
+    if (hasTranscriptMarker(el)) candidates.add(el);
+  }
+  for (const heading of document.querySelectorAll('h1, h2, h3, h4, summary')) {
+    if (!/\btranscript\b/i.test(visibleText(heading))) continue;
+    const section = heading.closest('article, section, main, aside, div, details');
+    if (section) candidates.add(section);
+    let sibling = heading.nextElementSibling;
+    while (sibling) {
+      candidates.add(sibling);
+      sibling = sibling.nextElementSibling;
+    }
+  }
+
+  const sorted = [...candidates]
+    .map((el) => ({ el, text: normalizeTranscriptText(rawText(el)) }))
+    .filter((candidate) => isUsefulTranscript(candidate.text))
+    .sort((a, b) => b.text.length - a.text.length);
+
+  if (sorted[0]) return sorted[0].text;
+  return youtube ? null : null;
+}
+
+function collectYouTubeTranscriptSegments() {
+  const segmentEls = Array.from(document.querySelectorAll('ytd-transcript-segment-renderer'));
+  if (segmentEls.length === 0) return [];
+  return segmentEls
+    .map((el) => {
+      const explicitText = el.querySelector('.segment-text, yt-formatted-string')?.textContent;
+      return normalizeTranscriptText(explicitText ?? rawText(el));
+    })
+    .filter(Boolean);
+}
+
+function hasTranscriptMarker(el) {
+  const attrs = [
+    el.id,
+    el.className,
+    el.getAttribute?.('aria-label'),
+    el.getAttribute?.('data-testid'),
+    el.getAttribute?.('data-test-id'),
+    el.getAttribute?.('itemprop'),
+  ];
+  return attrs.some((value) => /\btranscript\b/i.test(String(value ?? '')));
+}
+
+function normalizeTranscriptText(text) {
+  return text
+    .replace(/\r\n?/g, '\n')
+    .replace(/\b\d{1,2}:\d{2}(?::\d{2})?\b/g, ' ')
+    .replace(/^\s*transcript\s*$/gim, ' ')
+    .replace(/\b(show|hide|open|close)\s+transcript\b/gi, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\s+\n/g, '\n')
+    .replace(/\n\s+/g, '\n')
+    .trim();
+}
+
+function isUsefulTranscript(text) {
+  return text.length >= MIN_TEXT_LENGTH && countWords(text) >= 40;
+}
+
+function capText(text) {
+  return {
+    text: text.length > MAX_TEXT_LENGTH ? text.slice(0, MAX_TEXT_LENGTH) : text,
+    truncated: text.length > MAX_TEXT_LENGTH,
   };
 }
 
@@ -176,6 +314,10 @@ function scoreReadableContainer(el, selectorScore) {
 
 function visibleText(el) {
   return (el?.innerText ?? el?.textContent ?? '').replace(/\s+/g, ' ').trim();
+}
+
+function rawText(el) {
+  return el?.innerText ?? el?.textContent ?? '';
 }
 
 function findLinkedDocumentSource(pageUrl) {
