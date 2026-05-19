@@ -82,6 +82,23 @@ describe('extractPage fallback containers', () => {
     expect(extracted.text).toBe('');
   });
 
+  it('marks LinkedIn media PDF URLs without .pdf suffix for background extraction', () => {
+    vi.stubGlobal('location', {
+      href: 'https://media.licdn.com/dms/document/media/v2/D4E10AQHKj_OSE_ySQg/ads-document-pdf-analyzed/B4EZqjILJ4IwAY-/0/1763673425342/How-Anthropic-teams-use-Claude-Code_v2pdf?e=1779804000&v=beta&t=token',
+    });
+    document.title = 'How Anthropic teams use Claude Code';
+    document.body.innerHTML = '<main><h1>Chrome PDF Viewer</h1></main>';
+
+    const extracted = extractPage();
+
+    expect(extracted.classification).toEqual({
+      kind: 'pdf',
+      sourceType: 'pdf',
+      reason: 'needs-background-extraction',
+    });
+    expect(extracted.text).toBe('');
+  });
+
   it('marks Google Docs for background extraction before article fallback', () => {
     vi.stubGlobal('location', { href: 'https://docs.google.com/document/d/abc123/edit' });
     document.title = 'Product Strategy - Google Docs';

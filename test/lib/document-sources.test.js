@@ -30,9 +30,20 @@ describe('document source URL helpers', () => {
     expect(parseArxivId('https://arxiv.org/pdf/cs/0310051')).toBe('cs/0310051');
   });
 
+  it('detects LinkedIn media document PDF URLs without a .pdf suffix', () => {
+    const url = 'https://media.licdn.com/dms/document/media/v2/D4E10AQHKj_OSE_ySQg/ads-document-pdf-analyzed/B4EZqjILJ4IwAY-/0/1763673425342/How-Anthropic-teams-use-Claude-Code_v2pdf?e=1779804000&v=beta&t=token';
+    expect(isPdfUrl(url)).toBe(true);
+    expect(documentSourceFromUrl(url)).toEqual({
+      kind: 'pdf',
+      sourceType: 'pdf',
+      label: 'PDF',
+    });
+  });
+
   it('does not mark ordinary HTML pages as PDFs', () => {
     expect(isPdfUrl('https://arxiv.org/abs/1706.03762')).toBe(false);
     expect(isPdfUrl('https://example.com/article')).toBe(false);
+    expect(isPdfUrl('https://example.com/posts/how-to-export-pdf')).toBe(false);
     expect(isPdfUrl('not a url')).toBe(false);
   });
 

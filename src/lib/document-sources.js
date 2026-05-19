@@ -14,7 +14,7 @@ export function documentSourceFromUrl(url) {
     return null;
   }
 
-  if (/\.pdf$/i.test(parsed.pathname) || parseArxivId(url) !== null) {
+  if (looksLikePdfUrl(parsed) || parseArxivId(url) !== null) {
     return {
       kind: 'pdf',
       sourceType: 'pdf',
@@ -282,6 +282,18 @@ export function parseYouTubeUrl(url) {
 
 function looksLikeEpubPath(pathname) {
   return /\.epub(?:3)?(?:[._-](?:images|noimages))?$/i.test(pathname);
+}
+
+function looksLikePdfUrl(parsed) {
+  if (/\.pdf$/i.test(parsed.pathname)) return true;
+  return looksLikeLinkedInMediaPdf(parsed);
+}
+
+function looksLikeLinkedInMediaPdf(parsed) {
+  const host = parsed.hostname.toLowerCase();
+  if (host !== 'media.licdn.com' && !host.endsWith('.media.licdn.com')) return false;
+  const path = decodeURIComponent(parsed.pathname);
+  return path.includes('/dms/document/media/') && /(?:^|[._/-])(?:pdf|v2pdf)(?:$|[._/-])/i.test(path);
 }
 
 const MARKDOWN_PATH_RE = /\.(?:md|markdown|mdown|mkd)$/i;
