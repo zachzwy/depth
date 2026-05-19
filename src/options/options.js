@@ -272,6 +272,11 @@ function formatRenewal(periodEnd, status) {
   if (status === 'canceled' || status === 'unpaid') {
     return `Access ends ${date}.`;
   }
+  if (status === 'trialing') {
+    // For trialing, period_end is the trial end date — the day the user
+    // gets charged unless they cancel.
+    return `Trial ends ${date}.`;
+  }
   return `Next renewal: ${date}.`;
 }
 
@@ -287,8 +292,9 @@ function renderAccount(settings, usageSnapshot) {
   // quota that the user should be able to see.
   if (hasSession) {
     const tier = settings.hostedTier === 'pro' ? 'pro' : 'free';
+    const isTrial = tier === 'pro' && settings.hostedSubscriptionStatus === 'trialing';
     accountTierBadge.hidden = false;
-    accountTierBadge.textContent = tier === 'pro' ? 'Pro' : 'Free';
+    accountTierBadge.textContent = isTrial ? 'Pro (trial)' : tier === 'pro' ? 'Pro' : 'Free';
     accountTierBadge.dataset.tier = tier;
   } else {
     accountTierBadge.hidden = true;
@@ -331,6 +337,17 @@ function renderAccount(settings, usageSnapshot) {
   upgradeBtn.hidden = tier !== 'free';
   upgradePitch.hidden = tier !== 'free';
   portalBtn.hidden = tier !== 'pro';
+  if (tier === 'free') {
+    if (settings.hostedTrialEligible) {
+      upgradeBtn.textContent = 'Start 30-day free trial';
+      upgradePitch.textContent =
+        'Try Pro free for 30 days: 50 summaries, quizzes, and dive turns per day (vs. 5 on free). Cancel anytime from Manage subscription — no charge before day 30.';
+    } else {
+      upgradeBtn.textContent = 'Upgrade to Pro';
+      upgradePitch.textContent =
+        'Go Pro to lift your daily cap to 50 summaries, quizzes, and dive turns — keep reading deeper, without hitting the wall.';
+    }
+  }
 
   const renewalText = formatRenewal(settings.hostedCurrentPeriodEnd, settings.hostedSubscriptionStatus);
   if (renewalText) {

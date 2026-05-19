@@ -109,6 +109,18 @@ export const en = {
   paywallSignInBody: 'Sign in to get more daily quota.',
   paywallBringKey: 'Use your own API key',
   paywallBringKeyHint: 'Switches to BYOK mode with no Depth quota.',
+  // Trial-eligible paywall variant. Same actions, different framing.
+  paywallTrialTitle: 'Out of generations — start your 30-day Pro trial',
+  paywallTrialBody: '50 generations a day on Pro, free for 30 days. Cancel anytime from Settings.',
+  paywallTrialStart: 'Start free trial',
+  // One-shot post-sign-in modal.
+  trialOfferTitle: 'Try Pro free for 30 days',
+  trialOfferBody:
+    '50 generates, quizzes, and dives per day (vs. 5 on free). Cancel anytime — no charge if you cancel before day 30.',
+  trialOfferStart: 'Start free trial',
+  trialOfferStarting: 'Opening Stripe…',
+  trialOfferDismiss: 'Maybe later',
+  trialOfferError: "Couldn't start the trial. Try again or open Settings.",
   buildQuiz: 'Building your quiz...',
   perfect: 'Perfect.',
   strong: 'Strong.',

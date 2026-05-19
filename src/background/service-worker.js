@@ -1,6 +1,6 @@
 import { streamMessage } from './api.js';
 import { streamHosted, HostedError } from './hosted-client.js';
-import { ensureHostedSession, completeHostedSignupWithCaptcha, signInWithGoogle } from './hosted-auth.js';
+import { ensureHostedSession, completeHostedSignupWithCaptcha, signInWithGoogle, fetchWhoami } from './hosted-auth.js';
 import { openCheckout, BillingError } from './billing.js';
 import {
   publishSummary as hostedPublishSummary,
@@ -125,6 +125,27 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         sendResponse({ ok: true });
       } catch (err) {
         sendResponse({ ok: false, code: 'SIGN_IN_FAILED', message: err?.message ?? 'Sign-in failed' });
+      }
+    })();
+    return true;
+  }
+  if (msg?.type === 'depth:refresh-whoami') {
+    // Opportunistic whoami refresh from the panel. Pulls the current
+    // tier + trialEligible + subscription state from the server and
+    // writes them to settings storage, where the panel's settings-change
+    // listener picks them up. Best-effort: returns ok:false on any
+    // failure so callers can ignore without surfacing it.
+    (async () => {
+      try {
+        const settings = await getSettings();
+        if (!settings.hostedAccessToken || settings.hostedIsAnonymous) {
+          sendResponse({ ok: false, code: 'NOT_SIGNED_IN' });
+          return;
+        }
+        await fetchWhoami(settings);
+        sendResponse({ ok: true });
+      } catch (err) {
+        sendResponse({ ok: false, code: 'WHOAMI_FAILED', message: err?.message });
       }
     })();
     return true;

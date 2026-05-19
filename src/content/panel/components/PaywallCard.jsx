@@ -13,8 +13,21 @@
 // — we have to decide whether to preventDefault before yielding, otherwise
 // Chrome opens the anchor target in a new tab AND we also open a Stripe tab.
 
-export default function PaywallCard({ error, onUseOwnKey, onUpgrade, onSignIn, canUpgrade, ui }) {
+export default function PaywallCard({
+  error,
+  onUseOwnKey,
+  onUpgrade,
+  onSignIn,
+  canUpgrade,
+  // True when the signed-in user has never had a Stripe customer. Swaps
+  // the title and CTA copy to the trial-flavored version; the click
+  // handler is unchanged because the server decides paid vs trial on
+  // the same checkout call.
+  trialEligible,
+  ui,
+}) {
   const upgradeUrl = error?.upgradeUrl;
+  const showTrialCopy = canUpgrade && trialEligible;
 
   function handleUpgradeClick(e) {
     if (typeof onUpgrade !== 'function' || !canUpgrade) {
@@ -38,13 +51,26 @@ export default function PaywallCard({ error, onUseOwnKey, onUpgrade, onSignIn, c
     });
   }
 
-  const body = canUpgrade
-    ? (error?.message ?? ui.paywallBody)
-    : ui.paywallSignInBody;
+  let title;
+  let body;
+  let upgradeLabel;
+  if (showTrialCopy) {
+    title = ui.paywallTrialTitle;
+    body = ui.paywallTrialBody;
+    upgradeLabel = ui.paywallTrialStart;
+  } else if (canUpgrade) {
+    title = ui.paywallTitle;
+    body = error?.message ?? ui.paywallBody;
+    upgradeLabel = ui.paywallUpgrade;
+  } else {
+    title = ui.paywallTitle;
+    body = ui.paywallSignInBody;
+    upgradeLabel = null;
+  }
 
   return (
     <div class="state state--paywall">
-      <h2 class="state__title">{ui.paywallTitle}</h2>
+      <h2 class="state__title">{title}</h2>
       <p class="state__body">{body}</p>
       <div class="state__actions">
         {canUpgrade
@@ -56,7 +82,7 @@ export default function PaywallCard({ error, onUseOwnKey, onUpgrade, onSignIn, c
                 rel="noopener noreferrer"
                 onClick={handleUpgradeClick}
               >
-                {ui.paywallUpgrade}
+                {upgradeLabel}
               </a>
             )
           : (

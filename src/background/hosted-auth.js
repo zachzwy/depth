@@ -308,6 +308,7 @@ export async function fetchWhoami(settings) {
   const isAnonymous = Boolean(json.isAnonymous);
   const subscriptionStatus = json.stripe?.subscriptionStatus ?? '';
   const currentPeriodEnd = json.stripe?.currentPeriodEnd ?? '';
+  const trialEligible = Boolean(json.trialEligible);
   // /v1/auth/whoami currently doesn't surface email; pull from settings if
   // we have it (sign-in set it). A future server-side enrichment can stop
   // this from being best-effort.
@@ -317,11 +318,13 @@ export async function fetchWhoami(settings) {
   settings.hostedIsAnonymous = isAnonymous;
   settings.hostedSubscriptionStatus = subscriptionStatus;
   settings.hostedCurrentPeriodEnd = currentPeriodEnd;
+  settings.hostedTrialEligible = trialEligible;
   await setSettings({
     hostedTier: tier,
     hostedIsAnonymous: isAnonymous,
     hostedSubscriptionStatus: subscriptionStatus,
     hostedCurrentPeriodEnd: currentPeriodEnd,
+    hostedTrialEligible: trialEligible,
   });
 
   return {
@@ -331,6 +334,7 @@ export async function fetchWhoami(settings) {
     email,
     subscriptionStatus,
     currentPeriodEnd,
+    trialEligible,
   };
 }
 
@@ -391,6 +395,7 @@ async function clearLocalSession(settings) {
   settings.hostedTier = 'free';
   settings.hostedSubscriptionStatus = '';
   settings.hostedCurrentPeriodEnd = '';
+  settings.hostedTrialEligible = false;
   await setSettings({
     hostedAccessToken: '',
     hostedRefreshToken: '',
@@ -401,6 +406,7 @@ async function clearLocalSession(settings) {
     hostedTier: 'free',
     hostedSubscriptionStatus: '',
     hostedCurrentPeriodEnd: '',
+    hostedTrialEligible: false,
   });
 }
 

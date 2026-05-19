@@ -227,6 +227,9 @@ export const DEFAULTS = {
   hostedTier: 'free',
   hostedSubscriptionStatus: '',
   hostedCurrentPeriodEnd: '',
+  // Server-derived: signed-in user has never had a Stripe customer.
+  // Surfaces the one-time 30-day Pro trial in the panel modal + paywall.
+  hostedTrialEligible: false,
   // Community share settings (phase 6).
   // - communityAutoPublish: the ONLY skip-the-consent-dialog flag.
   //   Default OFF; the dialog shows on every Share click otherwise.

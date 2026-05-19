@@ -37,6 +37,12 @@ import ShareDialog from './components/ShareDialog.jsx';
 import CommunityVersionsCard from './components/CommunityVersionsCard.jsx';
 import ExtractionStats from './components/ExtractionStats.jsx';
 import DeckView from './components/DeckView.jsx';
+import TrialOfferModal from './components/TrialOfferModal.jsx';
+
+// Per-subject one-shot guard for the trial-offer modal. Key is namespaced
+// to the subjectId so different signed-in users see the offer once each;
+// presence (any truthy value) is enough — we don't snooze or replay.
+const TRIAL_OFFER_SHOWN_KEY_PREFIX = 'depth:trial-offer-shown:';
 
 const DEFAULT_PANEL_WIDTH = 420;
 const MIN_PANEL_WIDTH = 420;
@@ -174,6 +180,10 @@ export default function Panel({ pageMeta, onClose }) {
   const [diveInput, setDiveInput] = useState('');
   const divePortRef = useRef(null);
 
+  // Trial-offer modal. Driven by an effect on (settings, subjectId);
+  // suppressed once the per-subject seen flag is written.
+  const [showTrialOffer, setShowTrialOffer] = useState(false);
+
   const ui = getUi(settings?.preferredLanguage);
   const localizedLevels = localizeLevels(ui);
   const current = localizedLevels.find((l) => l.id === level) ?? localizedLevels[0];
@@ -239,6 +249,16 @@ export default function Panel({ pageMeta, onClose }) {
   const init = useCallback(async () => {
     const settings = await getSettings();
     setSettingsState(settings);
+
+    // Opportunistic whoami refresh for signed-in users. Picks up server
+    // state (tier, subscription status, trial eligibility) that may have
+    // changed since the last sign-in. Fire-and-forget — failures are
+    // ignored because every signed-in flow has its own retry/error path.
+    if (!settings.hostedIsAnonymous && settings.hostedAccessToken) {
+      chrome.runtime
+        .sendMessage({ type: 'depth:refresh-whoami' })
+        .catch(() => {});
+    }
     // Reset community-banner + local-cache state on every (re-)init
     // so a previous URL's banner doesn't bleed across navigation, and
     // the cache notice only shows after a fresh-this-URL probe hit.
@@ -385,7 +405,12 @@ export default function Panel({ pageMeta, onClose }) {
         !changes.model &&
         !changes.preferredLanguage &&
         !changes.providerMode &&
-        !changes.hostedBaseUrl
+        !changes.hostedBaseUrl &&
+        // Trial eligibility writes happen from the SW (fetchWhoami) and
+        // gate the post-sign-in modal effect below. Without this key the
+        // panel's settings state wouldn't refresh after the SW writes
+        // it, and the modal would never surface.
+        !changes.hostedTrialEligible
       ) {
         return;
       }
@@ -1005,15 +1030,66 @@ export default function Panel({ pageMeta, onClose }) {
   }
 
   const canUpgrade = settings?.hostedIsAnonymous === false;
+  // Server adds trial_period_days=30 automatically when the subject has
+  // no Stripe customer yet, so this is the same depth:open-checkout
+  // message we use for the paid path — no branching here.
   async function onUpgrade() {
     try {
       const res = await chrome.runtime.sendMessage({ type: 'depth:open-checkout' });
       if (res && !res.ok) {
         console.warn('[Depth panel] checkout failed:', res.code, res.message);
+        return res;
       }
+      return { ok: true };
     } catch (e) {
       console.warn('[Depth panel] open-checkout sendMessage threw:', e?.message);
+      return { ok: false, message: e?.message };
     }
+  }
+
+  // Surface the post-sign-in trial modal when (a) the user is signed-in
+  // and eligible per the server, and (b) we haven't shown it for this
+  // subject before. The seen flag is written on EITHER outcome so the
+  // CTA path doesn't double-prompt on the next panel open.
+  useEffect(() => {
+    if (!settings) return;
+    if (!settings.hostedTrialEligible) return;
+    if (settings.hostedIsAnonymous) return;
+    const subjectId = settings.hostedSubjectId;
+    if (!subjectId) return;
+    const key = `${TRIAL_OFFER_SHOWN_KEY_PREFIX}${subjectId}`;
+    let cancelled = false;
+    chrome.storage.local.get(key).then((stored) => {
+      if (cancelled) return;
+      if (stored?.[key]) return;
+      setShowTrialOffer(true);
+    });
+    return () => { cancelled = true; };
+  }, [
+    settings?.hostedTrialEligible,
+    settings?.hostedIsAnonymous,
+    settings?.hostedSubjectId,
+  ]);
+
+  async function markTrialOfferShown() {
+    const subjectId = settings?.hostedSubjectId;
+    if (!subjectId) return;
+    const key = `${TRIAL_OFFER_SHOWN_KEY_PREFIX}${subjectId}`;
+    await chrome.storage.local.set({ [key]: Date.now() });
+  }
+
+  async function onTrialOfferStart() {
+    const result = await onUpgrade();
+    if (result?.ok) {
+      await markTrialOfferShown();
+      setShowTrialOffer(false);
+    }
+    return result;
+  }
+
+  async function onTrialOfferDismiss() {
+    await markTrialOfferShown();
+    setShowTrialOffer(false);
   }
 
   // Anonymous-user variant of the paywall CTA. Routes the click through the
@@ -1427,6 +1503,12 @@ export default function Panel({ pageMeta, onClose }) {
             onRemove={onRemoveCard}
             ui={ui}
           />
+        ) : showTrialOffer ? (
+          <TrialOfferModal
+            onStart={onTrialOfferStart}
+            onDismiss={onTrialOfferDismiss}
+            ui={ui}
+          />
         ) : (
           <>
             {staleUrl && (
@@ -1465,6 +1547,7 @@ export default function Panel({ pageMeta, onClose }) {
                 onUpgrade={onUpgrade}
                 onSignIn={onSignIn}
                 canUpgrade={canUpgrade}
+                trialEligible={!!settings?.hostedTrialEligible}
                 ui={ui}
               />
             )}
