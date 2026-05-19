@@ -80,7 +80,16 @@ describe('CommunityVersionsCard', () => {
         ui={en}
       />,
     );
-    expect(container.textContent).toContain(en.communityHydratedNotice);
+    expect(container.textContent).toContain(en.communityHydratedPrefix.trim());
+    expect(container.textContent).toContain(en.communityHydratedLink);
+    expect(container.textContent).toContain(en.communityHydratedSuffix.trim());
+    // The "community version" phrase is a real anchor pointing at /community.
+    const link = container.querySelector('.community-card__link');
+    expect(link).not.toBeNull();
+    expect(link.getAttribute('href')).toBe('https://depth.microfalls.com/community');
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(link.textContent).toBe(en.communityHydratedLink);
     const buttons = container.querySelectorAll('button');
     expect(buttons.length).toBe(1);
     expect(buttons[0].textContent).toBe(en.communityGenerateFresh);

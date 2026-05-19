@@ -26,7 +26,10 @@ export const en = {
   communityUseLatest: 'Use latest (saves your quota)',
   communityGenerateFresh: 'Generate fresh',
   communityHydrating: 'Loading community version…',
-  communityHydratedNotice: 'Reading the community version. Generate fresh to use your own quota.',
+  // Split into pieces so we can inline a link on "community version".
+  communityHydratedPrefix: 'Reading the ',
+  communityHydratedLink: 'community version',
+  communityHydratedSuffix: '. Generate fresh to use your own quota.',
   communityHydrateFailed: 'Could not load the community version. Generating fresh instead.',
   saveToDeck: 'Save to deck',
   saved: 'Saved',

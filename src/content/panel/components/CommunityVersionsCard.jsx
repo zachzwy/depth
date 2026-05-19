@@ -21,7 +21,18 @@ export default function CommunityVersionsCard({
   if (status === 'using') {
     return (
       <div class="community-card community-card--using">
-        <p class="community-card__notice">{ui.communityHydratedNotice}</p>
+        <p class="community-card__notice">
+          {ui.communityHydratedPrefix}
+          <a
+            class="community-card__link"
+            href="https://depth.microfalls.com/community"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {ui.communityHydratedLink}
+          </a>
+          {ui.communityHydratedSuffix}
+        </p>
         <div class="community-card__actions">
           <button
             type="button"

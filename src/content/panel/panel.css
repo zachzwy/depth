@@ -1365,6 +1365,20 @@
   color: var(--text-2);
 }
 
+.community-card__link {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong, rgba(255, 255, 255, 0.18));
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+  transition: text-decoration-color 0.12s;
+}
+
+.community-card__link:hover,
+.community-card__link:focus-visible {
+  text-decoration-color: var(--accent);
+}
+
 .community-card__actions {
   display: flex;
   gap: 8px;
