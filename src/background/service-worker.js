@@ -2,7 +2,12 @@ import { streamMessage } from './api.js';
 import { streamHosted, HostedError } from './hosted-client.js';
 import { ensureHostedSession, completeHostedSignupWithCaptcha, signInWithGoogle } from './hosted-auth.js';
 import { openCheckout, BillingError } from './billing.js';
-import { publishSummary as hostedPublishSummary, ShareError } from './hosted-share.js';
+import {
+  publishSummary as hostedPublishSummary,
+  listMyShares as hostedListMyShares,
+  deleteMyShare as hostedDeleteMyShare,
+  ShareError,
+} from './hosted-share.js';
 import {
   listCommunityVersions,
   fetchCommunitySummaryBySlug,
@@ -277,6 +282,55 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     })();
     return true;
   }
+  if (msg?.type === 'depth:list-my-shares') {
+    // Options page asks for the caller's own published summaries.
+    // Auth/permission gates live in hosted-share.js; we just forward
+    // the result or map errors into the standard {ok,code,message} shape.
+    (async () => {
+      try {
+        const settings = await getSettings();
+        const { versions } = await hostedListMyShares(settings);
+        sendResponse({ ok: true, versions });
+      } catch (err) {
+        const code =
+          err instanceof ShareError
+            ? err.code
+            : err instanceof HostedError
+              ? err.code
+              : 'UPSTREAM_FAILED';
+        sendResponse({
+          ok: false,
+          code,
+          message: err?.message ?? 'List failed',
+          details: err?.details,
+        });
+      }
+    })();
+    return true;
+  }
+  if (msg?.type === 'depth:delete-my-share') {
+    (async () => {
+      try {
+        const settings = await getSettings();
+        await hostedDeleteMyShare(settings, msg.slug);
+        sendResponse({ ok: true });
+      } catch (err) {
+        const code =
+          err instanceof ShareError
+            ? err.code
+            : err instanceof HostedError
+              ? err.code
+              : 'UPSTREAM_FAILED';
+        sendResponse({
+          ok: false,
+          code,
+          message: err?.message ?? 'Delete failed',
+          details: err?.details,
+        });
+      }
+    })();
+    return true;
+  }
   if (msg?.type === 'depth:probe-community') {
     // Panel asks "are there published versions of this URL?" before
     // kicking off generation. Returns versions[] (may be empty) — we
@@ -296,6 +350,14 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         sendResponse({ versions: [] });
       }
     })();
+    return true;
+  }
+  if (msg?.type === 'depth:open-options') {
+    // Content scripts can't call chrome.runtime.openOptionsPage directly.
+    chrome.runtime.openOptionsPage().catch((err) => {
+      console.warn('[Depth] openOptionsPage failed:', err?.message);
+    });
+    sendResponse({ ok: true });
     return true;
   }
   if (msg?.type === 'depth:fetch-community-summary') {

@@ -21,6 +21,7 @@ export const en = {
   shareCopyAgain: 'Copy link',
   shareCopiedFeedback: 'Copied ✓',
   shareFailed: 'Share failed.',
+  manageShares: 'Manage your shares',
   communityAvailableOne: 'A community version of this page is published.',
   communityAvailableMany: (n) => `${n} community versions of this page are published.`,
   communityUseLatest: 'Use latest (saves your quota)',

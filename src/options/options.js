@@ -49,6 +49,11 @@ const signoutBtn = document.getElementById('signout-btn');
 const billingError = document.getElementById('billing-error');
 const communityAutoPublishInput = document.getElementById('community-auto-publish');
 const communityUseCacheInput = document.getElementById('community-use-cache');
+const sharesCard = document.getElementById('shares-card');
+const sharesLoading = document.getElementById('shares-loading');
+const sharesEmpty = document.getElementById('shares-empty');
+const sharesError = document.getElementById('shares-error');
+const sharesList = document.getElementById('shares-list');
 
 function currentMode() {
   const checked = modeRadios.find((r) => r.checked);
@@ -238,6 +243,7 @@ function applyModeVisibility() {
   if (mode === 'hosted') {
     refreshHostedUI();
     refreshAccountUI();
+    refreshSharesUI();
   }
 }
 
@@ -396,6 +402,121 @@ async function refreshAccountUI({ skipWhoami = false } = {}) {
   }
 }
 
+// ---- Your shared summaries ----
+
+function setSharesStatus({ loading = false, empty = false, error = '' } = {}) {
+  sharesLoading.hidden = !loading;
+  sharesEmpty.hidden = !empty;
+  if (error) {
+    sharesError.textContent = error;
+    sharesError.hidden = false;
+  } else {
+    sharesError.textContent = '';
+    sharesError.hidden = true;
+  }
+}
+
+function formatShareDate(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function renderSharesList(versions) {
+  sharesList.replaceChildren();
+  for (const v of versions) {
+    const row = document.createElement('li');
+    row.className = 'shares-row';
+    row.dataset.slug = v.slug;
+
+    const title = document.createElement('div');
+    title.className = 'shares-row__title';
+    title.textContent = v.title || '(untitled)';
+
+    const source = document.createElement('div');
+    source.className = 'shares-row__source';
+    source.textContent = v.url;
+    source.title = v.url;
+
+    const meta = document.createElement('div');
+    meta.className = 'shares-row__meta';
+    const created = document.createElement('span');
+    created.textContent = formatShareDate(v.createdAt);
+    const views = document.createElement('span');
+    const n = Number(v.viewCount ?? 0);
+    views.textContent = `${n} view${n === 1 ? '' : 's'}`;
+    meta.append(created, views);
+    if (v.isHidden) {
+      const badge = document.createElement('span');
+      badge.className = 'shares-row__hidden-badge';
+      badge.textContent = 'Hidden';
+      badge.title = 'Auto-hidden after community reports — not visible on /community.';
+      meta.append(badge);
+    }
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'shares-row__delete';
+    del.textContent = 'Delete';
+    del.addEventListener('click', () => handleDeleteShare(v.slug, del));
+
+    row.append(title, source, meta, del);
+    sharesList.append(row);
+  }
+  sharesList.hidden = versions.length === 0;
+}
+
+async function refreshSharesUI() {
+  const settings = await getSettings();
+  if (!settings.hostedAccessToken) {
+    sharesCard.hidden = true;
+    return;
+  }
+  sharesCard.hidden = false;
+  setSharesStatus({ loading: true });
+  sharesList.hidden = true;
+  try {
+    const res = await chrome.runtime.sendMessage({ type: 'depth:list-my-shares' });
+    if (!res?.ok) {
+      setSharesStatus({ error: res?.message ?? 'Could not load your shared summaries.' });
+      return;
+    }
+    const versions = Array.isArray(res.versions) ? res.versions : [];
+    if (versions.length === 0) {
+      setSharesStatus({ empty: true });
+      return;
+    }
+    setSharesStatus();
+    renderSharesList(versions);
+  } catch (err) {
+    setSharesStatus({ error: err?.message ?? 'Could not load your shared summaries.' });
+  }
+}
+
+async function handleDeleteShare(slug, btn) {
+  const ok = window.confirm(
+    'Delete this summary? The /community page will stop serving it. This cannot be undone.',
+  );
+  if (!ok) return;
+  btn.disabled = true;
+  try {
+    const res = await chrome.runtime.sendMessage({ type: 'depth:delete-my-share', slug });
+    if (!res?.ok) {
+      setSharesStatus({ error: res?.message ?? 'Delete failed.' });
+      btn.disabled = false;
+      return;
+    }
+    // Optimistically drop the row, then refetch so view counts on other
+    // rows stay current and the empty-state lights up if this was the last.
+    const row = sharesList.querySelector(`[data-slug="${CSS.escape(slug)}"]`);
+    row?.remove();
+    await refreshSharesUI();
+  } catch (err) {
+    setSharesStatus({ error: err?.message ?? 'Delete failed.' });
+    btn.disabled = false;
+  }
+}
+
 signinGoogleBtn.addEventListener('click', async () => {
   setInlineError(signinError, '');
   signinGoogleBtn.disabled = true;
@@ -403,6 +524,7 @@ signinGoogleBtn.addEventListener('click', async () => {
     const settings = await getSettings();
     const result = await signInWithGoogle(settings);
     await refreshAccountUI();
+    await refreshSharesUI();
     if (result?.linked) {
       // Non-blocking hint that today's anon usage carried over.
       setInlineError(billingError, '');
@@ -422,6 +544,7 @@ signoutBtn.addEventListener('click', async () => {
     const settings = await getSettings();
     await signOut(settings);
     await refreshAccountUI({ skipWhoami: true });
+    await refreshSharesUI();
   } catch (err) {
     setInlineError(billingError, err.message || 'Sign-out failed.');
   } finally {

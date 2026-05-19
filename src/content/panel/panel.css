@@ -1288,6 +1288,20 @@
   cursor: default;
 }
 
+.share-dialog__manage {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-2, rgba(255, 255, 255, 0.7));
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong, rgba(255, 255, 255, 0.22));
+  text-underline-offset: 3px;
+}
+
+.share-dialog__manage:hover {
+  color: var(--text, #fff);
+}
+
 /* Brief feedback flash when the user clicks "Copy link" — the
  * clipboard write is otherwise invisible. The URL box pulses with the
  * accent color, and the CTA briefly relabels to "Copied ✓" (handled in

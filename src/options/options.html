@@ -118,6 +118,21 @@
               <span>Use community summaries when available (saves daily quota)</span>
             </label>
           </div>
+
+          <div class="shares-card" id="shares-card" hidden>
+            <h3 class="shares-card__title">Your shared summaries</h3>
+            <p class="shares-card__hint">
+              Summaries you've published to
+              <a href="https://depth.microfalls.com/community" target="_blank" rel="noopener noreferrer">depth.microfalls.com/community</a>.
+              Delete is permanent — the public page will stop serving the slug immediately.
+            </p>
+            <p class="shares-card__status" id="shares-loading">Loading…</p>
+            <p class="shares-card__status" id="shares-empty" hidden>
+              You haven't published any summaries yet.
+            </p>
+            <p class="shares-card__error" id="shares-error" hidden></p>
+            <ul class="shares-list" id="shares-list" hidden></ul>
+          </div>
         </section>
 
         <section id="custom-section">

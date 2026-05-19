@@ -76,3 +76,91 @@ export async function publishSummary(settings, input) {
   }
   return { slug: json.slug, shareUrl: json.shareUrl };
 }
+
+/**
+ * List the caller's own published summaries. Used by the options page's
+ * "Your shared summaries" management section.
+ *
+ * @returns {Promise<{ versions: Array<{ slug, url, title, createdAt, viewCount, isHidden }> }>}
+ */
+export async function listMyShares(settings) {
+  await assertHostedPermission(settings);
+  await ensureHostedSession(settings);
+  const baseUrl = (settings.hostedBaseUrl ?? '').replace(/\/+$/, '');
+
+  let res;
+  try {
+    res = await fetch(`${baseUrl}/share-summary/mine`, {
+      method: 'GET',
+      headers: {
+        accept: 'application/json',
+        authorization: `Bearer ${settings.hostedAccessToken}`,
+      },
+    });
+  } catch (err) {
+    throw new HostedError({
+      code: 'UPSTREAM_FAILED',
+      message: err?.message ?? 'Network error reaching /share-summary/mine',
+    });
+  }
+
+  let json = null;
+  try {
+    json = await res.json();
+  } catch {
+    /* non-JSON response */
+  }
+  if (!res.ok) {
+    throw new ShareError({
+      code: json?.code ?? 'UPSTREAM_FAILED',
+      message: json?.message ?? `/share-summary/mine failed (${res.status})`,
+      details: json?.details,
+    });
+  }
+  const versions = Array.isArray(json?.versions) ? json.versions : [];
+  return { versions };
+}
+
+/**
+ * Owner-only delete by slug. Backend filters on `created_by`, so a slug
+ * the caller didn't publish comes back as 404.
+ */
+export async function deleteMyShare(settings, slug) {
+  if (!slug) {
+    throw new ShareError({ code: 'BAD_SLUG', message: 'Missing slug.' });
+  }
+  await assertHostedPermission(settings);
+  await ensureHostedSession(settings);
+  const baseUrl = (settings.hostedBaseUrl ?? '').replace(/\/+$/, '');
+
+  let res;
+  try {
+    res = await fetch(`${baseUrl}/share-summary/${encodeURIComponent(slug)}`, {
+      method: 'DELETE',
+      headers: {
+        accept: 'application/json',
+        authorization: `Bearer ${settings.hostedAccessToken}`,
+      },
+    });
+  } catch (err) {
+    throw new HostedError({
+      code: 'UPSTREAM_FAILED',
+      message: err?.message ?? 'Network error reaching /share-summary',
+    });
+  }
+
+  let json = null;
+  try {
+    json = await res.json();
+  } catch {
+    /* non-JSON response */
+  }
+  if (!res.ok) {
+    throw new ShareError({
+      code: json?.code ?? 'UPSTREAM_FAILED',
+      message: json?.message ?? `Delete failed (${res.status})`,
+      details: json?.details,
+    });
+  }
+  return { ok: true };
+}

@@ -39,6 +39,13 @@ export default function ShareDialog({
     copiedTimeoutRef.current = setTimeout(() => setJustCopied(false), COPIED_FEEDBACK_MS);
   }
 
+  function handleManageClick(e) {
+    // Content scripts can't call chrome.runtime.openOptionsPage directly,
+    // so we round-trip via the service worker.
+    e.preventDefault();
+    chrome.runtime.sendMessage({ type: 'depth:open-options' });
+  }
+
   const inFlight = status === 'publishing';
   return (
     <div class="share-dialog" role="dialog" aria-label={ui.share}>
@@ -65,6 +72,13 @@ export default function ShareDialog({
               {ui.close}
             </button>
           </div>
+          <a
+            href="#"
+            class="share-dialog__manage"
+            onClick={handleManageClick}
+          >
+            {ui.manageShares}
+          </a>
         </>
       ) : status === 'error' ? (
         <>
