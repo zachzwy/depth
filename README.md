@@ -26,10 +26,11 @@ Depth currently supports these article-heavy formats:
 - **Word documents**: direct/downloadable `.docx` files and Office viewer URLs that contain a `.docx` source URL.
 - **EPUB**: direct EPUB URLs, Gutenberg-style EPUB filenames, and known ebook pages that link to EPUB files.
 - **Markdown and plain text**: direct `.md`, `.markdown`, `.txt`, and `.text` files, plus GitHub blob pages for those file types.
+- **Jupyter notebooks**: direct `.ipynb` files and GitHub blob pages, extracting Markdown and raw cells as reading text.
 
 Known gaps and good future candidates:
 
-- **OCR PDFs**: scanned/image-only PDFs need OCR before Depth can read them.
+- **OCR PDFs**: scanned/image-only PDFs need a local WASM OCR runtime or a hosted OCR path before Depth can read them.
 - **Google Slides / PowerPoint**: should use deck-aware extraction and prompting rather than article extraction.
 - **Audio and video**: need transcript extraction or speech-to-text.
 - **Private Microsoft Word Online / SharePoint viewer pages**: direct `.docx` links work; full viewer/export auth needs a deeper integration.

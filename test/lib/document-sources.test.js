@@ -6,6 +6,7 @@ import {
   googleDocTextCandidates,
   isPdfUrl,
   markdownCandidates,
+  notebookCandidates,
   parseArxivId,
   parseGoogleDoc,
   textCandidates,
@@ -127,6 +128,22 @@ describe('document source URL helpers', () => {
       {
         url: 'https://raw.githubusercontent.com/zachzwy/depth/main/examples/note.txt',
         label: 'Plain text',
+      },
+    ]);
+  });
+
+  it('detects direct and GitHub Jupyter notebook URLs', () => {
+    const direct = 'https://example.com/notebooks/analysis.ipynb';
+    expect(documentSourceFromUrl(direct)).toEqual({
+      kind: 'document',
+      sourceType: 'jupyter-notebook',
+      label: 'Jupyter notebook',
+      url: direct,
+    });
+    expect(notebookCandidates('https://github.com/jakevdp/PythonDataScienceHandbook/blob/master/notebooks/01.00-IPython-Beyond-Normal-Python.ipynb')).toEqual([
+      {
+        url: 'https://raw.githubusercontent.com/jakevdp/PythonDataScienceHandbook/master/notebooks/01.00-IPython-Beyond-Normal-Python.ipynb',
+        label: 'Jupyter notebook',
       },
     ]);
   });

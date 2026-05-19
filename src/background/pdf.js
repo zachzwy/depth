@@ -7,6 +7,7 @@ import {
   epubCandidates,
   googleDocTextCandidates,
   markdownCandidates,
+  notebookCandidates,
   parseArxivId,
   parseGoogleDoc,
   textCandidates,
@@ -63,6 +64,11 @@ export async function extractPdfDocument({ url, title, signal } = {}) {
     });
   }
 
+  const notebookSourceCandidates = notebookCandidates(url);
+  if (notebookSourceCandidates.length > 0) {
+    return extractNotebookDocument({ url, title, signal, candidates: notebookSourceCandidates });
+  }
+
   for (const candidate of arxivHtmlCandidates(url)) {
     try {
       const htmlExtraction = await tryExtractHtml(candidate, { url, title, signal });
@@ -73,6 +79,58 @@ export async function extractPdfDocument({ url, title, signal } = {}) {
   }
 
   return extractPdfText({ url, title, signal });
+}
+
+async function extractNotebookDocument({ url, title, signal, candidates }) {
+  let lastError;
+  for (const candidate of candidates) {
+    try {
+      const raw = await fetchPlainText(candidate.url, signal);
+      const text = normalizeDocumentText(notebookToText(raw));
+      if (text.length < MIN_TEXT_LENGTH) {
+        throw new Error('This Jupyter notebook does not expose enough readable text.');
+      }
+      const capped = capText(text);
+      return {
+        title: titleFromUrl(url, title, 'Jupyter notebook'),
+        byline: null,
+        siteName: null,
+        text: capped.text,
+        wordCount: countWords(capped.text),
+        truncated: capped.truncated,
+        sourceUrl: candidate.url,
+        sourceLabel: candidate.label,
+        classification: { kind: 'article', sourceType: 'jupyter-notebook' },
+      };
+    } catch (err) {
+      lastError = err;
+      console.warn('[Depth Notebook] candidate failed:', candidate.url, err?.message);
+    }
+  }
+  throw lastError ?? new Error('This Jupyter notebook is not supported yet.');
+}
+
+function notebookToText(raw) {
+  let notebook;
+  try {
+    notebook = JSON.parse(raw);
+  } catch {
+    throw new Error('This Jupyter notebook is not valid JSON.');
+  }
+
+  const parts = [];
+  for (const cell of notebook.cells ?? []) {
+    const source = Array.isArray(cell.source) ? cell.source.join('') : (cell.source ?? '');
+    const trimmed = source.trim();
+    if (!trimmed) continue;
+    if (cell.cell_type === 'markdown') {
+      parts.push(markdownToText(trimmed));
+    } else if (cell.cell_type === 'raw') {
+      parts.push(trimmed);
+    }
+  }
+
+  return parts.filter(Boolean).join('\n\n');
 }
 
 async function extractTextDocument({ url, title, signal, candidates, sourceType, label, transform }) {

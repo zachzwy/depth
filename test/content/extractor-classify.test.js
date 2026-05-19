@@ -178,6 +178,26 @@ describe('extractPage fallback containers', () => {
     expect(extracted.text).toBe('');
   });
 
+  it('marks GitHub Jupyter notebook blob pages for raw background extraction', () => {
+    vi.stubGlobal('location', {
+      href: 'https://github.com/jakevdp/PythonDataScienceHandbook/blob/master/notebooks/01.00-IPython-Beyond-Normal-Python.ipynb',
+    });
+    document.title = '01.00-IPython-Beyond-Normal-Python.ipynb';
+    document.body.innerHTML = '<main><h1>Notebook</h1></main>';
+
+    const extracted = extractPage();
+
+    expect(extracted.classification).toEqual({
+      kind: 'document',
+      sourceType: 'jupyter-notebook',
+      reason: 'needs-background-extraction',
+    });
+    expect(extracted.sourceUrl).toBe(
+      'https://raw.githubusercontent.com/jakevdp/PythonDataScienceHandbook/master/notebooks/01.00-IPython-Beyond-Normal-Python.ipynb',
+    );
+    expect(extracted.text).toBe('');
+  });
+
   it('extracts Mintlify-style docs content without semantic article wrappers', () => {
     history.pushState(null, '', '/oss/python/langchain/multi-agent/index');
     document.title = 'Multi-agent - Docs by LangChain';

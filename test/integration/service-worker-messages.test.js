@@ -308,4 +308,56 @@ describe('depth:extract-document message handler', () => {
     expect(reply.extracted.sourceLabel).toBe('Plain text');
     expect(reply.extracted.text).toContain('Plain text files can carry long essays');
   });
+
+  it('returns extracted Jupyter notebook Markdown text', async () => {
+    const notebook = {
+      cells: [
+        {
+          cell_type: 'markdown',
+          source: [
+            '# Notebook Thesis\n',
+            '\n',
+            'Jupyter notebooks can be article-heavy technical documents with a clear argument.\n',
+          ],
+        },
+        {
+          cell_type: 'code',
+          source: ['print("implementation detail")\n'],
+        },
+        {
+          cell_type: 'markdown',
+          source: [
+            '- ',
+            'Depth should read the explanatory Markdown cells and skip executable code. '.repeat(8),
+          ],
+        },
+      ],
+      metadata: {},
+      nbformat: 4,
+      nbformat_minor: 5,
+    };
+    globalThis.fetch.mockResolvedValueOnce(
+      new Response(JSON.stringify(notebook), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    await importWorker();
+    const reply = await fireMessage({
+      type: 'depth:extract-document',
+      url: 'https://raw.githubusercontent.com/example/repo/main/analysis.ipynb',
+      title: 'analysis.ipynb',
+    });
+
+    expect(reply.ok).toBe(true);
+    expect(reply.extracted.classification).toEqual({
+      kind: 'article',
+      sourceType: 'jupyter-notebook',
+    });
+    expect(reply.extracted.sourceLabel).toBe('Jupyter notebook');
+    expect(reply.extracted.text).toContain('Notebook Thesis');
+    expect(reply.extracted.text).toContain('explanatory Markdown cells');
+    expect(reply.extracted.text).not.toContain('implementation detail');
+  });
 });

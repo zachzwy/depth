@@ -62,6 +62,16 @@ export function documentSourceFromUrl(url) {
     };
   }
 
+  const notebookCandidate = notebookCandidates(url)[0];
+  if (notebookCandidate) {
+    return {
+      kind: 'document',
+      sourceType: 'jupyter-notebook',
+      label: 'Jupyter notebook',
+      url: notebookCandidate.url,
+    };
+  }
+
   return null;
 }
 
@@ -181,12 +191,17 @@ export function textCandidates(url) {
   return textLikeCandidates(url, TEXT_PATH_RE, 'Plain text');
 }
 
+export function notebookCandidates(url) {
+  return textLikeCandidates(url, NOTEBOOK_PATH_RE, 'Jupyter notebook');
+}
+
 function looksLikeEpubPath(pathname) {
   return /\.epub(?:3)?(?:[._-](?:images|noimages))?$/i.test(pathname);
 }
 
 const MARKDOWN_PATH_RE = /\.(?:md|markdown|mdown|mkd)$/i;
 const TEXT_PATH_RE = /\.(?:txt|text)$/i;
+const NOTEBOOK_PATH_RE = /\.ipynb$/i;
 
 function textLikeCandidates(url, pathPattern, label) {
   let parsed;
