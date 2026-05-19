@@ -1433,6 +1433,87 @@
   color: var(--text);
 }
 
+/* ----- multi-version chooser inside the community card ----- */
+
+.community-card__versions {
+  list-style: none;
+  margin: 8px 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.community-card__version-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+
+.community-card__version-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.community-card__version-meta {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.community-card__version-date {
+  color: var(--text);
+}
+
+.community-card__version-views {
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+/* Compact prev/next strip shown in 'using' mode when more than one
+   version exists. */
+.community-card__switcher {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.community-card__position {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.community-card__step {
+  background: transparent;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  color: var(--text-2);
+  border-radius: 4px;
+  font-size: 12px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.community-card__step:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--border-strong, rgba(255, 255, 255, 0.22));
+}
+
+.community-card__step:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 /* ----- local-cache hit notice (sibling to community banner) ----- */
 
 .cache-notice {

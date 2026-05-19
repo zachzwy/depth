@@ -11,6 +11,11 @@ export const en = {
   shareTitle: 'Share this Depth view',
   shareDisabledNoData: 'Generate a summary first.',
   shareDisabledLevel: 'Share is for Glance, Summary, and Read views.',
+  shareDisabledFromCommunity: 'Click Re-generate to publish a new version.',
+  shareDuplicateTitle: 'Already published.',
+  shareDuplicateBody:
+    'This exact summary is already in /community. Switch to the existing version, or click Re-generate to publish a different one.',
+  shareDuplicateReadExisting: 'Read existing',
   shareConsentTitle: 'Publish to depth.microfalls.com/community?',
   shareConsentBody:
     "Your Glance, Summary, and Read views will be public on depth.microfalls.com/community along with the article URL. Anyone can read it, and you can delete it later from Settings. The original article body is never published — only what Depth produced. Publishing is anonymous — readers don't see who shared it.",
@@ -32,6 +37,13 @@ export const en = {
   communityHydratedLink: 'community version',
   communityHydratedSuffix: " — doesn't count toward your daily limit. Generate fresh to use your own quota.",
   communityHydrateFailed: 'Could not load the community version. Generating fresh instead.',
+  // Multi-version toggle on the community card.
+  pickVersion: 'Use selected version',
+  prevVersion: 'prev',
+  nextVersion: 'next',
+  versionOfN: (i, n) => `Version ${i} of ${n}`,
+  viewsSingular: 'view',
+  viewsPlural: 'views',
   // Shown when the panel hydrates from a local content-hash cache hit
   // (same article, same device, within the 7-day TTL). Reassures the
   // user that re-opening a previously-read page doesn't burn quota.

@@ -14,11 +14,14 @@ import { ensureHostedSession } from './hosted-auth.js';
 import { assertHostedPermission, HostedError } from './hosted-client.js';
 
 export class ShareError extends Error {
-  constructor({ code, message, details }) {
+  constructor({ code, message, details, existingSlug }) {
     super(message ?? code ?? 'Share request failed');
     this.name = 'ShareError';
     this.code = code ?? 'UPSTREAM_FAILED';
     this.details = details;
+    // Populated only for DUPLICATE — the slug already holding the
+    // (url_hash, payload_hash) slot so the panel can offer to switch.
+    this.existingSlug = existingSlug;
   }
 }
 
@@ -66,6 +69,7 @@ export async function publishSummary(settings, input) {
       code: json?.code ?? 'UPSTREAM_FAILED',
       message: json?.message ?? `/share-summary failed (${res.status})`,
       details: json?.details,
+      existingSlug: json?.existingSlug,
     });
   }
   if (!json?.slug || !json?.shareUrl) {

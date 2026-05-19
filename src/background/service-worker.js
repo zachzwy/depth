@@ -277,6 +277,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           code,
           message: err?.message ?? 'Share failed',
           details: err?.details,
+          // Only populated when code === 'DUPLICATE' — lets the panel
+          // offer "switch to the existing version" inline.
+          existingSlug: err?.existingSlug,
         });
       }
     })();

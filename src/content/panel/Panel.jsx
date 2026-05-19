@@ -139,6 +139,19 @@ export default function Panel({ pageMeta, onClose }) {
   // escape hatch). Reset on URL change via the init useEffect.
   const [communityStatus, setCommunityStatus] = useState('idle');
   const [communityVersions, setCommunityVersions] = useState([]);
+  // The slug the user picked (or auto-picked via "Use latest"). Persists
+  // to session so closing and re-opening the panel on the same URL
+  // resumes on the same version. Reset when the user generates fresh.
+  const [selectedCommunitySlug, setSelectedCommunitySlug] = useState(null);
+
+  // Where the current view came from: 'fresh' = locally generated (or
+  // hydrated from the per-device cache, which is functionally the same —
+  // the user can publish it); 'community:<slug>' = hydrated from a
+  // community version, in which case Share is disabled until the user
+  // Re-generates. Drives the dedup UX so the user understands *why*
+  // Share is off, and matches the server-side (url_hash, payload_hash)
+  // unique index that rejects duplicate publishes.
+  const [hydratedSource, setHydratedSource] = useState('fresh');
 
   // `true` when this URL was hydrated from the local content-hash cache
   // (no generation round trip, no quota burn). Drives the small "no
@@ -262,12 +275,17 @@ export default function Panel({ pageMeta, onClose }) {
 
     // Restore prior session for this URL (if within TTL).
     const session = await getSession(pageMeta.url);
+    let resumeCommunitySlug = null;
     if (session) {
       if (typeof session.level === 'number') setLevel(session.level);
       if (typeof session.quizIndex === 'number') setQuizIndex(session.quizIndex);
       if (session.quizAnswers) setQuizAnswers(session.quizAnswers);
       if (Array.isArray(session.diveTurns)) setDiveTurns(session.diveTurns);
       if (typeof session.diveInput === 'string') setDiveInput(session.diveInput);
+      if (typeof session.selectedCommunitySlug === 'string') {
+        resumeCommunitySlug = session.selectedCommunitySlug;
+        setSelectedCommunitySlug(resumeCommunitySlug);
+      }
     }
     setSessionLoaded(true);
 
@@ -317,6 +335,22 @@ export default function Panel({ pageMeta, onClose }) {
         const versions = Array.isArray(probe?.versions) ? probe.versions : [];
         if (versions.length > 0) {
           setCommunityVersions(versions);
+          // Session-restored selection: auto-hydrate the previously picked
+          // version (if it's still in the returned list — slugs can vanish
+          // on owner-delete or auto-hide).
+          const resumeMatch = resumeCommunitySlug
+            ? versions.find((v) => v.slug === resumeCommunitySlug)
+            : null;
+          if (resumeMatch) {
+            setCommunityStatus('hydrating');
+            hydrateCommunityVersion(resumeMatch.slug).catch((err) => {
+              console.warn('[Depth panel] resume hydrate failed:', err?.message);
+              setCommunityStatus('available');
+            });
+            setError(null);
+            setStatus('init');
+            return;
+          }
           setCommunityStatus('available');
           // Holding generation — clear any leftover error/status from
           // a previous URL or settings change so we don't render the
@@ -401,10 +435,20 @@ export default function Panel({ pageMeta, onClose }) {
         quizAnswers,
         diveTurns: diveTurns.map(({ _streaming, ...rest }) => rest),
         diveInput,
+        selectedCommunitySlug,
       });
     }, 300);
     return () => clearTimeout(t);
-  }, [sessionLoaded, pageMeta.url, level, quizIndex, quizAnswers, diveTurns, diveInput]);
+  }, [
+    sessionLoaded,
+    pageMeta.url,
+    level,
+    quizIndex,
+    quizAnswers,
+    diveTurns,
+    diveInput,
+    selectedCommunitySlug,
+  ]);
 
   // Keyboard nav — arrows skip when focus is in an editable element so typing works.
   useEffect(() => {
@@ -592,6 +636,9 @@ export default function Panel({ pageMeta, onClose }) {
     setDiveInput('');
     setError(null);
     setLoadedFromLocalCache(false);
+    // Re-generating produces a new LLM output, so the source resets to
+    // 'fresh' and Share re-enables for this view.
+    setHydratedSource('fresh');
   }
 
   async function onConsent() {
@@ -1012,12 +1059,18 @@ export default function Panel({ pageMeta, onClose }) {
     if (level > 3) return false; // Glance/Summary/Read only.
     if (!data?.glance || !data?.summary || !data?.read) return false;
     if (settings?.providerMode !== 'hosted') return false;
+    // Hydrated from a community version → the payload was already
+    // published by someone (possibly this user); the server's
+    // (url_hash, payload_hash) unique index would reject a re-publish.
+    // Disable Share so the disabled tooltip explains "click Re-generate".
+    if (hydratedSource.startsWith('community:')) return false;
     return true;
   }
 
   function shareDisabledReason() {
     if (level > 3) return ui.shareDisabledLevel;
     if (!data?.glance || !data?.summary || !data?.read) return ui.shareDisabledNoData;
+    if (hydratedSource.startsWith('community:')) return ui.shareDisabledFromCommunity;
     return ui.share;
   }
 
@@ -1042,6 +1095,18 @@ export default function Panel({ pageMeta, onClose }) {
         payload,
       });
       if (!res?.ok) {
+        // DUPLICATE is its own dialog branch — the server says "this exact
+        // payload is already published"; we offer "Read existing / Cancel"
+        // rather than the generic Try-again surface.
+        if (res?.code === 'DUPLICATE') {
+          setShareError({
+            code: 'DUPLICATE',
+            message: res?.message ?? ui.shareDuplicateBody,
+            existingSlug: res?.existingSlug,
+          });
+          setShareStatus('duplicate');
+          return;
+        }
         setShareError({
           code: res?.code ?? 'UPSTREAM_FAILED',
           message: res?.message ?? ui.shareFailed,
@@ -1110,41 +1175,88 @@ export default function Panel({ pageMeta, onClose }) {
     setShareStatus('idle');
   }
 
+  // DUPLICATE → user clicks "Read existing": fetch the existing slug's
+  // payload, paint it, and mark hydratedSource so Share stays disabled.
+  async function onShareReadExisting() {
+    const slug = shareError?.existingSlug;
+    if (!slug) {
+      // No slug came back — fall back to closing the dialog rather than
+      // leaving the user stuck. Server should always include it for
+      // DUPLICATE, but guard for older edge-function deployments.
+      setShareStatus('idle');
+      return;
+    }
+    setShareStatus('idle');
+    setCommunityStatus('hydrating');
+    try {
+      const res = await chrome.runtime.sendMessage({
+        type: 'depth:fetch-community-summary',
+        slug,
+      });
+      if (!res?.ok || !res?.payload) {
+        setCommunityStatus('idle');
+        return;
+      }
+      setData(res.payload);
+      setStatus('ready');
+      setHydratedSource(`community:${slug}`);
+      setCommunityStatus('using');
+    } catch (err) {
+      console.warn('[Depth panel] read-existing hydrate threw:', err?.message);
+      setCommunityStatus('idle');
+    }
+  }
+
   // ----- Community consume (Use latest / Generate fresh) -----
+
+  // Shared hydrate: fetch a slug's payload and paint it. Updates
+  // hydratedSource + selectedCommunitySlug so Share is disabled and the
+  // selection persists in session. Caller controls communityStatus.
+  async function hydrateCommunityVersion(slug) {
+    if (!slug) return false;
+    try {
+      const res = await chrome.runtime.sendMessage({
+        type: 'depth:fetch-community-summary',
+        slug,
+      });
+      if (!res?.ok || !res?.payload) {
+        console.warn('[Depth panel] community hydrate failed:', res?.code, res?.message);
+        return false;
+      }
+      setData(res.payload);
+      setStatus('ready');
+      setHydratedSource(`community:${slug}`);
+      setSelectedCommunitySlug(slug);
+      setCommunityStatus('using');
+      return true;
+    } catch (err) {
+      console.warn('[Depth panel] community hydrate threw:', err?.message);
+      return false;
+    }
+  }
 
   async function onUseLatestCommunity() {
     const newest = communityVersions[0];
     if (!newest?.slug) return;
     setCommunityStatus('hydrating');
-    try {
-      const res = await chrome.runtime.sendMessage({
-        type: 'depth:fetch-community-summary',
-        slug: newest.slug,
-      });
-      if (!res?.ok || !res?.payload) {
-        // Don't surface a hard error — fall back to fresh generation.
-        // The status banner stays 'available' so the user can see the
-        // hydrate attempt didn't take and pick again.
-        console.warn('[Depth panel] community hydrate failed:', res?.code, res?.message);
-        setCommunityStatus('available');
-        return;
-      }
-      // Apply the published payload as if we'd just finished generation.
-      // The SW caches generation outputs under a content-hash, but the
-      // community payload didn't come from a fresh generate call — we
-      // just paint it directly.
-      setData(res.payload);
-      setStatus('ready');
-      setCommunityStatus('using');
-    } catch (err) {
-      console.warn('[Depth panel] community hydrate threw:', err?.message);
-      setCommunityStatus('available');
-    }
+    const ok = await hydrateCommunityVersion(newest.slug);
+    if (!ok) setCommunityStatus('available');
+  }
+
+  // Multi-version picker chose a specific slug (or compact strip's
+  // prev/next stepped to one). Same hydrate, status transitions through
+  // 'hydrating' so the picker disables in-flight.
+  async function onSelectCommunityVersion(slug) {
+    if (!slug) return;
+    setCommunityStatus('hydrating');
+    const ok = await hydrateCommunityVersion(slug);
+    if (!ok) setCommunityStatus('available');
   }
 
   function onGenerateFreshFromCommunity() {
     setCommunityStatus('idle');
     setCommunityVersions([]);
+    setSelectedCommunitySlug(null);
     if (extracted) startGeneration(extracted);
   }
 
@@ -1280,7 +1392,10 @@ export default function Panel({ pageMeta, onClose }) {
             <CommunityVersionsCard
               status={communityStatus}
               count={communityVersions.length}
+              versions={communityVersions}
+              selectedSlug={selectedCommunitySlug}
               onUseLatest={onUseLatestCommunity}
+              onSelectVersion={onSelectCommunityVersion}
               onGenerateFresh={onGenerateFreshFromCommunity}
               ui={ui}
             />
@@ -1301,6 +1416,7 @@ export default function Panel({ pageMeta, onClose }) {
             onAlways={onShareAlways}
             onCopy={onShareCopy}
             onClose={onShareClose}
+            onReadExisting={onShareReadExisting}
             ui={ui}
           />
         )}

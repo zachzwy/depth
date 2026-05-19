@@ -22,6 +22,7 @@ export default function ShareDialog({
   onAlways,
   onCopy,
   onClose,
+  onReadExisting,
   ui,
 }) {
   // Brief "Copied ✓" feedback after Copy-link is clicked. Without this
@@ -79,6 +80,19 @@ export default function ShareDialog({
           >
             {ui.manageShares}
           </a>
+        </>
+      ) : status === 'duplicate' ? (
+        <>
+          <h3 class="share-dialog__title">{ui.shareDuplicateTitle}</h3>
+          <p class="share-dialog__body">{errorMessage || ui.shareDuplicateBody}</p>
+          <div class="share-dialog__actions">
+            <button type="button" class="state__cta" onClick={onReadExisting}>
+              {ui.shareDuplicateReadExisting}
+            </button>
+            <button type="button" class="state__secondary" onClick={onClose}>
+              {ui.cancel}
+            </button>
+          </div>
         </>
       ) : status === 'error' ? (
         <>
