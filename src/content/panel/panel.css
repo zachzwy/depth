@@ -571,8 +571,7 @@
 .glance__one-sentence .term,
 .glance__one-sentence .term[data-slot] {
   font-style: normal;
-  color: var(--accent);
-  border-bottom: 1px dashed rgba(184, 168, 230, 0.5);
+  border-bottom: 1px dashed currentColor;
   padding-bottom: 1px;
   cursor: help;
 }
