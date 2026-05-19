@@ -10,6 +10,7 @@ import {
   notebookCandidates,
   parseArxivId,
   parseGoogleDoc,
+  rstCandidates,
   textCandidates,
   wordDocxCandidates,
 } from '../../src/lib/document-sources.js';
@@ -161,6 +162,22 @@ describe('document source URL helpers', () => {
       {
         url: 'https://raw.githubusercontent.com/example/paper/main/main.tex',
         label: 'LaTeX',
+      },
+    ]);
+  });
+
+  it('detects direct and GitHub reStructuredText source URLs', () => {
+    const direct = 'https://example.com/docs/guide.rst';
+    expect(documentSourceFromUrl(direct)).toEqual({
+      kind: 'document',
+      sourceType: 'restructured-text',
+      label: 'reStructuredText',
+      url: direct,
+    });
+    expect(rstCandidates('https://github.com/python/peps/blob/main/peps/pep-0008.rst')).toEqual([
+      {
+        url: 'https://raw.githubusercontent.com/python/peps/main/peps/pep-0008.rst',
+        label: 'reStructuredText',
       },
     ]);
   });

@@ -216,6 +216,26 @@ describe('extractPage fallback containers', () => {
     expect(extracted.text).toBe('');
   });
 
+  it('marks GitHub reStructuredText blob pages for raw background extraction', () => {
+    vi.stubGlobal('location', {
+      href: 'https://github.com/python/peps/blob/main/peps/pep-0008.rst',
+    });
+    document.title = 'pep-0008.rst';
+    document.body.innerHTML = '<main><h1>pep-0008.rst</h1></main>';
+
+    const extracted = extractPage();
+
+    expect(extracted.classification).toEqual({
+      kind: 'document',
+      sourceType: 'restructured-text',
+      reason: 'needs-background-extraction',
+    });
+    expect(extracted.sourceUrl).toBe(
+      'https://raw.githubusercontent.com/python/peps/main/peps/pep-0008.rst',
+    );
+    expect(extracted.text).toBe('');
+  });
+
   it('extracts Mintlify-style docs content without semantic article wrappers', () => {
     history.pushState(null, '', '/oss/python/langchain/multi-agent/index');
     document.title = 'Multi-agent - Docs by LangChain';

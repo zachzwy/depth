@@ -82,6 +82,16 @@ export function documentSourceFromUrl(url) {
     };
   }
 
+  const rstCandidate = rstCandidates(url)[0];
+  if (rstCandidate) {
+    return {
+      kind: 'document',
+      sourceType: 'restructured-text',
+      label: 'reStructuredText',
+      url: rstCandidate.url,
+    };
+  }
+
   return null;
 }
 
@@ -209,6 +219,10 @@ export function latexCandidates(url) {
   return textLikeCandidates(url, LATEX_PATH_RE, 'LaTeX');
 }
 
+export function rstCandidates(url) {
+  return textLikeCandidates(url, RST_PATH_RE, 'reStructuredText');
+}
+
 function looksLikeEpubPath(pathname) {
   return /\.epub(?:3)?(?:[._-](?:images|noimages))?$/i.test(pathname);
 }
@@ -217,6 +231,7 @@ const MARKDOWN_PATH_RE = /\.(?:md|markdown|mdown|mkd)$/i;
 const TEXT_PATH_RE = /\.(?:txt|text)$/i;
 const NOTEBOOK_PATH_RE = /\.ipynb$/i;
 const LATEX_PATH_RE = /\.tex$/i;
+const RST_PATH_RE = /\.rst$/i;
 
 function textLikeCandidates(url, pathPattern, label) {
   let parsed;

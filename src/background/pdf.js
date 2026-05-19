@@ -11,6 +11,7 @@ import {
   notebookCandidates,
   parseArxivId,
   parseGoogleDoc,
+  rstCandidates,
   textCandidates,
   wordDocxCandidates,
 } from '../lib/document-sources.js';
@@ -80,6 +81,19 @@ export async function extractPdfDocument({ url, title, signal } = {}) {
       sourceType: 'latex',
       label: 'LaTeX',
       transform: latexToText,
+    });
+  }
+
+  const rstSourceCandidates = rstCandidates(url);
+  if (rstSourceCandidates.length > 0) {
+    return extractTextDocument({
+      url,
+      title,
+      signal,
+      candidates: rstSourceCandidates,
+      sourceType: 'restructured-text',
+      label: 'reStructuredText',
+      transform: rstToText,
     });
   }
 
@@ -170,6 +184,27 @@ function latexToText(latex) {
       .replace(/\\[a-zA-Z]+\*?(?:\[[^\]]*\])?(?:\{[^{}]*\})?/g, ' ')
       .replace(/[{}]/g, ' ')
       .replace(/~+/g, ' '),
+  );
+}
+
+function rstToText(rst) {
+  return decodeHtml(
+    rst
+      .replace(/\r\n?/g, '\n')
+      .replace(/^\s*\.\.\s+(?:note|warning|tip|important|admonition)::\s*/gim, '')
+      .replace(/^\s*\.\.\s+(?:code-block|literalinclude|raw)::[^\n]*(?:\n[ \t]*)?(?:\n[ \t]{4,}.+)*/gim, ' ')
+      .replace(/^\s*\.\.\s+(?:contents|toctree|include|image|figure)::[^\n]*(?:\n[ \t]+.+)*/gim, ' ')
+      .replace(/^\s*\.\.\s+[^\n]*$/gm, ' ')
+      .replace(/::\s*\n(?:\s{4,}.+\n?)+/g, '\n')
+      .replace(/`([^`<]+)\s*<[^`>]+>`_/g, '$1')
+      .replace(/`([^`]+)`_/g, '$1')
+      .replace(/``([^`]+)``/g, '$1')
+      .replace(/:([a-zA-Z0-9_-]+):`([^`]+)`/g, '$2')
+      .replace(/\[[^\]]+\]_/g, ' ')
+      .replace(/^\s*[-*+]\s+/gm, '')
+      .replace(/^\s*\d+[.)]\s+/gm, '')
+      .replace(/^\s*[=\-~^"#*+`.:]{3,}\s*$/gm, '\n')
+      .replace(/[*_`]+/g, ''),
   );
 }
 

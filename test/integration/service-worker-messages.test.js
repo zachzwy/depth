@@ -400,4 +400,55 @@ describe('depth:extract-document message handler', () => {
     expect(reply.extracted.text).not.toContain('example2026');
     expect(reply.extracted.text).not.toContain('y = mx + b');
   });
+
+  it('returns extracted reStructuredText prose', async () => {
+    const rst = `
+      Style Guide for Python Code
+      ===========================
+
+      Abstract
+      --------
+
+      This document gives coding conventions for the Python code comprising the
+      standard library in the main Python distribution. The central thesis is that
+      consistent style makes code easier to read, maintain, and share.
+
+      .. note:: This guidance is intentionally practical.
+
+      Introduction
+      ------------
+
+      \`Python <https://python.org>\`_ code is read much more often than it is written.
+      :pep:\`8\` argues that consistency and readability should guide everyday
+      engineering choices. ${'Shared conventions lower review cost and help different teams collaborate on the same codebase. '.repeat(10)}
+
+      .. code-block:: python
+
+          print("implementation detail")
+    `;
+    globalThis.fetch.mockResolvedValueOnce(
+      new Response(rst, {
+        status: 200,
+        headers: { 'content-type': 'text/x-rst' },
+      }),
+    );
+
+    await importWorker();
+    const reply = await fireMessage({
+      type: 'depth:extract-document',
+      url: 'https://raw.githubusercontent.com/python/peps/main/peps/pep-0008.rst',
+      title: 'pep-0008.rst',
+    });
+
+    expect(reply.ok).toBe(true);
+    expect(reply.extracted.classification).toEqual({
+      kind: 'article',
+      sourceType: 'restructured-text',
+    });
+    expect(reply.extracted.sourceLabel).toBe('reStructuredText');
+    expect(reply.extracted.text).toContain('Style Guide for Python Code');
+    expect(reply.extracted.text).toContain('consistent style makes code easier to read');
+    expect(reply.extracted.text).not.toContain('code-block');
+    expect(reply.extracted.text).not.toContain('implementation detail');
+  });
 });
