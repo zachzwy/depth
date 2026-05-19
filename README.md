@@ -59,7 +59,7 @@ npm run build        # production build to ./dist
 
 `manifest.json` ships a `key` field so the extension ID stays constant across reinstalls (`hmgcbgpopbejbinnkfgnbbjecalglebn` for the current key). This matters because Depth Hosted's OAuth flow uses `https://<extension-id>.chromiumapp.org/` as its redirect URL — a drifting ID would mean re-allowlisting on every install.
 
-The matching private key lives at `.keys/depth-extension-dev.pem` (gitignored). Keep it backed up but out of the repo. Production builds uploaded to the Chrome Web Store get re-signed by the store and use a store-assigned ID; the `key` field is for development only.
+The matching private key lives at `.keys/depth-extension-dev.pem` (gitignored). Keep it backed up but out of the repo. Keep the `key` field in the manifest when uploading to the Chrome Web Store too — the store derives the extension ID from it, so the same `key` keeps the published extension on the same ID as local dev installs, which means the OAuth redirect allowlist (Supabase, etc.) keeps working without changes.
 
 To rotate (e.g. if the dev key leaks):
 ```bash

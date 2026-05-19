@@ -8,6 +8,12 @@ export default defineConfig({
     preact(),
     crx({ manifest }),
   ],
+  esbuild: {
+    // Mark console.log as side-effect-free so the minifier drops the calls
+    // in production builds. Dev mode skips minification, so logs still
+    // appear during `npm run dev`. console.warn/error are preserved.
+    pure: ['console.log'],
+  },
   build: {
     target: 'esnext',
     sourcemap: false,
