@@ -3,6 +3,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { setSettings } from '../../src/lib/settings.js';
+import { createStoredZip } from '../background/zip-fixtures.js';
 
 async function importWorker() {
   globalThis.chrome._connectListeners.clear();
@@ -195,6 +196,53 @@ describe('depth:extract-document message handler', () => {
       expect.objectContaining({
         credentials: 'include',
         headers: { accept: 'text/plain,*/*' },
+      }),
+    );
+  });
+
+  it('returns extracted EPUB text', async () => {
+    const epub = createStoredZip({
+      mimetype: 'application/epub+zip',
+      'META-INF/container.xml': `
+        <container>
+          <rootfiles>
+            <rootfile full-path="EPUB/package.opf"/>
+          </rootfiles>
+        </container>
+      `,
+      'EPUB/package.opf': `
+        <package>
+          <metadata><dc:title>Readable EPUB</dc:title></metadata>
+          <manifest>
+            <item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/>
+          </manifest>
+          <spine><itemref idref="chapter"/></spine>
+        </package>
+      `,
+      'EPUB/chapter.xhtml': `
+        <html><body><h1>Readable EPUB</h1><p>${'EPUB extraction follows the package spine and reads XHTML text. '.repeat(12)}</p></body></html>
+      `,
+    });
+    globalThis.fetch.mockResolvedValueOnce(
+      new Response(epub, { status: 200, headers: { 'content-type': 'application/epub+zip' } }),
+    );
+
+    await importWorker();
+    const reply = await fireMessage({
+      type: 'depth:extract-document',
+      url: 'https://example.com/books/readable.epub',
+      title: 'readable.epub',
+    });
+
+    expect(reply.ok).toBe(true);
+    expect(reply.extracted.classification).toEqual({ kind: 'article', sourceType: 'epub' });
+    expect(reply.extracted.sourceLabel).toBe('EPUB');
+    expect(reply.extracted.text).toContain('EPUB extraction follows the package spine');
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://example.com/books/readable.epub',
+      expect.objectContaining({
+        credentials: 'include',
+        headers: { accept: 'application/epub+zip,*/*' },
       }),
     );
   });

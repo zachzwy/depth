@@ -186,7 +186,7 @@ export default function Panel({ pageMeta, onClose }) {
     try {
       const res = await chrome.runtime.sendMessage({
         type: 'depth:extract-document',
-        url: pageMeta.url,
+        url: ext.sourceUrl || pageMeta.url,
         title: ext.title || pageMeta.title,
       });
       if (!res?.ok || !res.extracted?.text) {

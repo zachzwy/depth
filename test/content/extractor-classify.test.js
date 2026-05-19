@@ -112,6 +112,40 @@ describe('extractPage fallback containers', () => {
     expect(extracted.text).toBe('');
   });
 
+  it('marks direct EPUB URLs for background extraction', () => {
+    vi.stubGlobal('location', { href: 'https://example.com/books/example.epub' });
+    document.title = 'example.epub';
+    document.body.innerHTML = '<main><h1>Example EPUB</h1></main>';
+
+    const extracted = extractPage();
+
+    expect(extracted.classification).toEqual({
+      kind: 'document',
+      sourceType: 'epub',
+      reason: 'needs-background-extraction',
+    });
+    expect(extracted.text).toBe('');
+  });
+
+  it('marks known ebook pages with EPUB links for background extraction', () => {
+    vi.stubGlobal('location', { href: 'https://www.gutenberg.org/ebooks/1342' });
+    document.title = 'Pride and Prejudice by Jane Austen';
+    document.body.innerHTML = `
+      <h1>Pride and Prejudice</h1>
+      <a href="/ebooks/1342.epub3.images">EPUB3</a>
+    `;
+
+    const extracted = extractPage();
+
+    expect(extracted.classification).toEqual({
+      kind: 'document',
+      sourceType: 'epub',
+      reason: 'needs-background-extraction',
+    });
+    expect(extracted.sourceUrl).toBe('https://www.gutenberg.org/ebooks/1342.epub3.images');
+    expect(extracted.text).toBe('');
+  });
+
   it('extracts Mintlify-style docs content without semantic article wrappers', () => {
     history.pushState(null, '', '/oss/python/langchain/multi-agent/index');
     document.title = 'Multi-agent - Docs by LangChain';

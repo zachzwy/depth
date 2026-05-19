@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   arxivHtmlCandidates,
   documentSourceFromUrl,
+  epubCandidates,
   googleDocTextCandidates,
   isPdfUrl,
   parseArxivId,
@@ -72,5 +73,24 @@ describe('document source URL helpers', () => {
         'https://view.officeapps.live.com/op/view.aspx?src=https%3A%2F%2Fexample.com%2Fbrief.docx',
       ),
     ).toEqual([{ url: 'https://example.com/brief.docx', label: 'Word document' }]);
+  });
+
+  it('detects direct EPUB URLs', () => {
+    const url = 'https://example.com/books/example.epub?download=1';
+    expect(documentSourceFromUrl(url)).toEqual({
+      kind: 'document',
+      sourceType: 'epub',
+      label: 'EPUB',
+    });
+    expect(epubCandidates(url)).toEqual([{ url, label: 'EPUB' }]);
+  });
+
+  it('detects Project Gutenberg EPUB filenames', () => {
+    const url = 'https://www.gutenberg.org/ebooks/1342.epub3.images';
+    expect(documentSourceFromUrl(url)).toEqual({
+      kind: 'document',
+      sourceType: 'epub',
+      label: 'EPUB',
+    });
   });
 });

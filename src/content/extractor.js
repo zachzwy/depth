@@ -11,19 +11,12 @@ export function extractPage() {
   const url = typeof location !== 'undefined' ? location.href : '';
   const documentSource = documentSourceFromUrl(url);
   if (documentSource) {
-    return {
-      title: typeof document !== 'undefined' ? document.title : '',
-      byline: null,
-      siteName: null,
-      text: '',
-      wordCount: 0,
-      truncated: false,
-      classification: {
-        kind: documentSource.kind,
-        sourceType: documentSource.sourceType,
-        reason: 'needs-background-extraction',
-      },
-    };
+    return documentExtractionShell(documentSource);
+  }
+
+  const linkedDocumentSource = findLinkedDocumentSource(url);
+  if (linkedDocumentSource) {
+    return documentExtractionShell(linkedDocumentSource);
   }
 
   const urlVerdict = classifyByUrl(url);
@@ -52,6 +45,24 @@ export function extractPage() {
     wordCount: hasPageText ? countWords(text) : 0,
     truncated: pageText.length > MAX_TEXT_LENGTH,
     classification: { kind, reason: hasPageText ? 'text-not-article' : 'no-text' },
+  };
+}
+
+function documentExtractionShell(documentSource) {
+  return {
+    title: typeof document !== 'undefined' ? document.title : '',
+    byline: null,
+    siteName: null,
+    text: '',
+    wordCount: 0,
+    truncated: false,
+    sourceUrl: documentSource.url,
+    sourceLabel: documentSource.label,
+    classification: {
+      kind: documentSource.kind,
+      sourceType: documentSource.sourceType,
+      reason: 'needs-background-extraction',
+    },
   };
 }
 
@@ -165,6 +176,32 @@ function scoreReadableContainer(el, selectorScore) {
 
 function visibleText(el) {
   return (el?.innerText ?? el?.textContent ?? '').replace(/\s+/g, ' ').trim();
+}
+
+function findLinkedDocumentSource(pageUrl) {
+  if (typeof document === 'undefined') return null;
+  let parsed;
+  try {
+    parsed = new URL(pageUrl);
+  } catch {
+    return null;
+  }
+  const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+  if (host !== 'gutenberg.org' && host !== 'standardebooks.org') return null;
+
+  for (const link of document.querySelectorAll('a[href]')) {
+    const href = link.getAttribute('href');
+    if (!href) continue;
+    let absolute;
+    try {
+      absolute = new URL(href, pageUrl).href;
+    } catch {
+      continue;
+    }
+    const source = documentSourceFromUrl(absolute);
+    if (source?.sourceType === 'epub') return { ...source, url: absolute };
+  }
+  return null;
 }
 
 // URL-only classification. Returns 'feed' | 'discussion' | null.

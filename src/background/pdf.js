@@ -1,8 +1,10 @@
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import * as pdfjsWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs';
 import { extractDocxTextFromBytes } from './docx.js';
+import { extractEpubTextFromBytes } from './epub.js';
 import {
   arxivHtmlCandidates,
+  epubCandidates,
   googleDocTextCandidates,
   parseArxivId,
   parseGoogleDoc,
@@ -14,6 +16,7 @@ const MAX_TEXT_LENGTH = 60000;
 const MAX_PDF_BYTES = 20 * 1024 * 1024;
 const MAX_PDF_PAGES = 50;
 const MAX_DOCX_BYTES = 20 * 1024 * 1024;
+const MAX_EPUB_BYTES = 50 * 1024 * 1024;
 
 export async function extractPdfDocument({ url, title, signal } = {}) {
   if (!url) throw new Error('No PDF URL provided');
@@ -27,6 +30,11 @@ export async function extractPdfDocument({ url, title, signal } = {}) {
     return extractDocxDocument({ url, title, signal, candidates: wordCandidates });
   }
 
+  const epubSourceCandidates = epubCandidates(url);
+  if (epubSourceCandidates.length > 0) {
+    return extractEpubDocument({ url, title, signal, candidates: epubSourceCandidates });
+  }
+
   for (const candidate of arxivHtmlCandidates(url)) {
     try {
       const htmlExtraction = await tryExtractHtml(candidate, { url, title, signal });
@@ -37,6 +45,58 @@ export async function extractPdfDocument({ url, title, signal } = {}) {
   }
 
   return extractPdfText({ url, title, signal });
+}
+
+async function extractEpubDocument({ url, title, signal, candidates }) {
+  let lastError;
+  for (const candidate of candidates) {
+    try {
+      const epub = await fetchEpubText(candidate.url, signal);
+      if (epub.text.length < MIN_TEXT_LENGTH) {
+        throw new Error('This EPUB does not expose enough readable text.');
+      }
+      const capped = capText(epub.text);
+      return {
+        title: titleFromUrl(url, title || epub.title, 'EPUB'),
+        byline: null,
+        siteName: null,
+        text: capped.text,
+        wordCount: countWords(capped.text),
+        truncated: capped.truncated,
+        sectionCount: epub.sectionCount,
+        sourceUrl: candidate.url,
+        sourceLabel: candidate.label,
+        classification: { kind: 'article', sourceType: 'epub' },
+      };
+    } catch (err) {
+      lastError = err;
+      console.warn('[Depth EPUB] candidate failed:', candidate.url, err?.message);
+    }
+  }
+  throw lastError ?? new Error('This EPUB is not supported yet.');
+}
+
+async function fetchEpubText(url, signal) {
+  const res = await fetch(url, {
+    signal,
+    credentials: 'include',
+    headers: { accept: 'application/epub+zip,*/*' },
+  });
+  if (!res.ok) {
+    throw new Error(`EPUB fetch failed (${res.status})`);
+  }
+
+  const len = Number(res.headers.get('content-length') || 0);
+  if (len > MAX_EPUB_BYTES) {
+    throw new Error('EPUB is too large for this version of Depth');
+  }
+
+  const bytes = await res.arrayBuffer();
+  if (bytes.byteLength > MAX_EPUB_BYTES) {
+    throw new Error('EPUB is too large for this version of Depth');
+  }
+
+  return extractEpubTextFromBytes(bytes);
 }
 
 async function extractGoogleDocText({ url, title, signal }) {

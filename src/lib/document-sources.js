@@ -34,6 +34,14 @@ export function documentSourceFromUrl(url) {
     };
   }
 
+  if (epubCandidates(url).length > 0) {
+    return {
+      kind: 'document',
+      sourceType: 'epub',
+      label: 'EPUB',
+    };
+  }
+
   return null;
 }
 
@@ -131,6 +139,22 @@ export function wordDocxCandidates(url) {
   }
 
   return dedupeCandidates(candidates);
+}
+
+export function epubCandidates(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return [];
+  }
+
+  if (!looksLikeEpubPath(parsed.pathname)) return [];
+  return [{ url: parsed.href, label: 'EPUB' }];
+}
+
+function looksLikeEpubPath(pathname) {
+  return /\.epub(?:3)?(?:[._-](?:images|noimages))?$/i.test(pathname);
 }
 
 function looksLikeDocxUrl(value) {
