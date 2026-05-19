@@ -34,6 +34,7 @@ import CaptchaCard from './components/CaptchaCard.jsx';
 import StaleBanner from './components/StaleBanner.jsx';
 import UnsupportedCard from './components/UnsupportedCard.jsx';
 import ShareDialog from './components/ShareDialog.jsx';
+import CommunityVersionsCard from './components/CommunityVersionsCard.jsx';
 import ExtractionStats from './components/ExtractionStats.jsx';
 import DeckView from './components/DeckView.jsx';
 
@@ -123,6 +124,14 @@ export default function Panel({ pageMeta, onClose }) {
   const [shareResult, setShareResult] = useState(null);
   const [shareError, setShareError] = useState(null);
 
+  // Community consume-side state. 'idle' = no banner; 'available' =
+  // ≥1 community version found, banner offers Use latest / Generate
+  // fresh; 'hydrating' = fetching the picked slug; 'using' = panel
+  // shows the community payload (small notice + "Generate fresh"
+  // escape hatch). Reset on URL change via the init useEffect.
+  const [communityStatus, setCommunityStatus] = useState('idle');
+  const [communityVersions, setCommunityVersions] = useState([]);
+
   // Quiz state
   const [quizData, setQuizData] = useState(null);
   const [quizStatus, setQuizStatus] = useState('idle');
@@ -197,6 +206,10 @@ export default function Panel({ pageMeta, onClose }) {
   const init = useCallback(async () => {
     const settings = await getSettings();
     setSettingsState(settings);
+    // Reset community-banner state on every (re-)init so a previous URL's
+    // banner doesn't bleed across navigation. Versions are URL-specific.
+    setCommunityStatus('idle');
+    setCommunityVersions([]);
 
     // Extract first so the consent modal (and any future view) has content
     // to render even if the user has just saved settings for the first time.
@@ -242,6 +255,32 @@ export default function Panel({ pageMeta, onClose }) {
     }
     generatedForUrl.current = pageMeta.url;
     setStaleUrl(null);
+
+    // Community probe: before burning quota, check whether someone has
+    // already published a summary of this URL. Only the panel-side
+    // setting `communityUseCache` controls participation here; the SW
+    // handler also gates on the same setting as a defense-in-depth.
+    // A probe failure / empty result silently falls through to the
+    // normal generation path so the worst case is unchanged latency.
+    if (settings.communityUseCache && settings.providerMode === 'hosted') {
+      setCommunityStatus('probing');
+      try {
+        const probe = await chrome.runtime.sendMessage({
+          type: 'depth:probe-community',
+          url: pageMeta.url,
+        });
+        const versions = Array.isArray(probe?.versions) ? probe.versions : [];
+        if (versions.length > 0) {
+          setCommunityVersions(versions);
+          setCommunityStatus('available');
+          return; // hold generation until the user picks
+        }
+      } catch (err) {
+        console.warn('[Depth panel] community probe failed:', err?.message);
+      }
+      setCommunityStatus('idle');
+    }
+
     startGeneration(ext);
   }, [startGeneration, pageMeta.url, bypassClassification, resolveDocumentExtraction]);
 
@@ -1017,6 +1056,44 @@ export default function Panel({ pageMeta, onClose }) {
     setShareStatus('idle');
   }
 
+  // ----- Community consume (Use latest / Generate fresh) -----
+
+  async function onUseLatestCommunity() {
+    const newest = communityVersions[0];
+    if (!newest?.slug) return;
+    setCommunityStatus('hydrating');
+    try {
+      const res = await chrome.runtime.sendMessage({
+        type: 'depth:fetch-community-summary',
+        slug: newest.slug,
+      });
+      if (!res?.ok || !res?.payload) {
+        // Don't surface a hard error — fall back to fresh generation.
+        // The status banner stays 'available' so the user can see the
+        // hydrate attempt didn't take and pick again.
+        console.warn('[Depth panel] community hydrate failed:', res?.code, res?.message);
+        setCommunityStatus('available');
+        return;
+      }
+      // Apply the published payload as if we'd just finished generation.
+      // The SW caches generation outputs under a content-hash, but the
+      // community payload didn't come from a fresh generate call — we
+      // just paint it directly.
+      setData(res.payload);
+      setStatus('ready');
+      setCommunityStatus('using');
+    } catch (err) {
+      console.warn('[Depth panel] community hydrate threw:', err?.message);
+      setCommunityStatus('available');
+    }
+  }
+
+  function onGenerateFreshFromCommunity() {
+    setCommunityStatus('idle');
+    setCommunityVersions([]);
+    if (extracted) startGeneration(extracted);
+  }
+
   async function onUnsave() {
     if (!urlIsSaved) return;
     setDeck(await removeFromDeckByUrl(pageMeta.url));
@@ -1142,6 +1219,18 @@ export default function Panel({ pageMeta, onClose }) {
       )}
 
       <div class="depth-panel__content">
+        {view === 'main' &&
+          (communityStatus === 'available' ||
+            communityStatus === 'hydrating' ||
+            communityStatus === 'using') && (
+            <CommunityVersionsCard
+              status={communityStatus}
+              count={communityVersions.length}
+              onUseLatest={onUseLatestCommunity}
+              onGenerateFresh={onGenerateFreshFromCommunity}
+              ui={ui}
+            />
+          )}
         {view === 'main' && shareStatus !== 'idle' && (
           <ShareDialog
             status={shareStatus}

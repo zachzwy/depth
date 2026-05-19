@@ -3,6 +3,10 @@ import { streamHosted, HostedError } from './hosted-client.js';
 import { ensureHostedSession, completeHostedSignupWithCaptcha, signInWithGoogle } from './hosted-auth.js';
 import { openCheckout, BillingError } from './billing.js';
 import { publishSummary as hostedPublishSummary, ShareError } from './hosted-share.js';
+import {
+  listCommunityVersions,
+  fetchCommunitySummaryBySlug,
+} from './hosted-community.js';
 import { extractPdfDocument } from './pdf.js';
 import { publicApiErrorMessage, shuffle, stripJsonWrapper, makeAbort } from './helpers.js';
 import contentScriptPath from '../content/content-script.js?script';
@@ -268,6 +272,49 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           code,
           message: err?.message ?? 'Share failed',
           details: err?.details,
+        });
+      }
+    })();
+    return true;
+  }
+  if (msg?.type === 'depth:probe-community') {
+    // Panel asks "are there published versions of this URL?" before
+    // kicking off generation. Returns versions[] (may be empty) — we
+    // intentionally swallow errors here so a probe failure doesn't
+    // block the normal generation flow.
+    (async () => {
+      try {
+        const settings = await getSettings();
+        if (!settings.communityUseCache) {
+          sendResponse({ versions: [] });
+          return;
+        }
+        const versions = await listCommunityVersions(settings, msg.url ?? '');
+        sendResponse({ versions });
+      } catch (err) {
+        console.warn('[Depth] probe-community failed:', err?.message);
+        sendResponse({ versions: [] });
+      }
+    })();
+    return true;
+  }
+  if (msg?.type === 'depth:fetch-community-summary') {
+    // Panel asks for the full payload of a slug the user picked.
+    // Returns {ok, slug, url, title, payload} or {ok:false, code, message}.
+    (async () => {
+      try {
+        const settings = await getSettings();
+        const row = await fetchCommunitySummaryBySlug(settings, msg.slug ?? '');
+        if (!row) {
+          sendResponse({ ok: false, code: 'NOT_FOUND', message: 'Version not found.' });
+          return;
+        }
+        sendResponse({ ok: true, ...row });
+      } catch (err) {
+        sendResponse({
+          ok: false,
+          code: 'UPSTREAM_FAILED',
+          message: err?.message ?? 'Could not fetch community version.',
         });
       }
     })();
