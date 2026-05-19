@@ -196,7 +196,12 @@ export default function Panel({ pageMeta, onClose }) {
         title: ext.title || pageMeta.title,
       });
       if (!res?.ok || !res.extracted?.text) {
-        throw new Error(res?.message ?? 'Could not read this document.');
+        setError({
+          code: res?.code ?? 'DOCUMENT_EXTRACT_FAILED',
+          message: res?.message ?? 'Could not read this document.',
+        });
+        setStatus('error');
+        return null;
       }
       return res.extracted;
     } catch (err) {

@@ -23,6 +23,16 @@ const MAX_PDF_PAGES = 50;
 const MAX_DOCX_BYTES = 20 * 1024 * 1024;
 const MAX_EPUB_BYTES = 50 * 1024 * 1024;
 const MAX_TEXT_BYTES = 5 * 1024 * 1024;
+const SCANNED_PDF_MESSAGE =
+  'This PDF looks scanned or image-based. Depth can read selectable-text PDFs, but OCR is not supported yet.';
+
+export class DocumentExtractionError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.name = 'DocumentExtractionError';
+    this.code = code;
+  }
+}
 
 export async function extractPdfDocument({ url, title, signal } = {}) {
   if (!url) throw new Error('No PDF URL provided');
@@ -486,7 +496,7 @@ async function extractPdfText({ url, title, signal }) {
 
   const fullText = pageTexts.map((p) => p.text).join('\n\n').trim();
   if (fullText.length < MIN_TEXT_LENGTH) {
-    throw new Error('This PDF does not expose enough selectable text. OCR is not supported yet.');
+    throw classifyLowTextPdf({ pageCount, pagesToRead, pageTexts });
   }
 
   const capped = capText(fullText);
@@ -503,6 +513,21 @@ async function extractPdfText({ url, title, signal }) {
     sourceLabel: 'PDF text',
     classification: { kind: 'article', sourceType: 'pdf' },
   };
+}
+
+function classifyLowTextPdf({ pageCount, pagesToRead, pageTexts }) {
+  const textLength = pageTexts.reduce((sum, page) => sum + page.text.length, 0);
+  const pagesWithText = pageTexts.length;
+  const averageCharsPerPage = pagesToRead > 0 ? textLength / pagesToRead : 0;
+
+  if (pagesWithText === 0 || averageCharsPerPage < 40) {
+    return new DocumentExtractionError('SCANNED_PDF_UNSUPPORTED', SCANNED_PDF_MESSAGE);
+  }
+
+  return new DocumentExtractionError(
+    'PDF_TEXT_TOO_SHORT',
+    `This PDF exposes only ${textLength.toLocaleString('en-US')} selectable characters across ${Math.min(pageCount, pagesToRead).toLocaleString('en-US')} page${pagesToRead === 1 ? '' : 's'}. OCR is not supported yet.`,
+  );
 }
 
 function htmlToText(html) {

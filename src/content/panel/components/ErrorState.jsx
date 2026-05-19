@@ -5,6 +5,10 @@ const FRIENDLY_KEYS = {
   EMPTY_RESPONSE: 'emptyResponse',
   API_ERROR: 'apiError',
   SETTINGS_READ_FAILED: 'settingsReadFailed',
+  SCANNED_PDF_UNSUPPORTED: 'scannedPdfUnsupported',
+  PDF_TEXT_TOO_SHORT: 'pdfTextTooShort',
+  PDF_EXTRACT_FAILED: 'documentExtractFailed',
+  DOCUMENT_EXTRACT_FAILED: 'documentExtractFailed',
 };
 
 export default function ErrorState({ error, onRetry, ui }) {

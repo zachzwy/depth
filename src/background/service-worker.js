@@ -136,7 +136,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         console.warn('[Depth] document extraction failed:', err?.message);
         sendResponse({
           ok: false,
-          code: 'PDF_EXTRACT_FAILED',
+          code: err?.code ?? 'PDF_EXTRACT_FAILED',
           message: err?.message ?? 'Could not read this PDF.',
         });
       }
