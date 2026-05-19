@@ -31,4 +31,20 @@ describe('TermHighlight', () => {
 
     expect(container.textContent).toBe('Use Transformer and self-attention.');
   });
+
+  it('falls back to exact key-term label matches when tokens are missing', () => {
+    const { container } = render(
+      <TermHighlight
+        text="The Transformer uses self-attention, but transformers are not matched inside longer words."
+        terms={[
+          { label: 'Transformer', definition: 'A sequence model.' },
+          { label: 'self-attention', definition: 'Attention within one sequence.' },
+        ]}
+      />,
+    );
+
+    const highlights = [...container.querySelectorAll('.term')].map((node) => node.textContent);
+    expect(highlights).toEqual(['Transformer', 'self-attention']);
+    expect(container.textContent).toContain('The Transformer uses self-attention');
+  });
 });
