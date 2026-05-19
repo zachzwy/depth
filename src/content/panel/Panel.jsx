@@ -273,7 +273,12 @@ export default function Panel({ pageMeta, onClose }) {
         if (versions.length > 0) {
           setCommunityVersions(versions);
           setCommunityStatus('available');
-          return; // hold generation until the user picks
+          // Holding generation — clear any leftover error/status from
+          // a previous URL or settings change so we don't render the
+          // banner alongside a stale "Something went wrong" card.
+          setError(null);
+          setStatus('init');
+          return;
         }
       } catch (err) {
         console.warn('[Depth panel] community probe failed:', err?.message);
@@ -1309,11 +1314,17 @@ export default function Panel({ pageMeta, onClose }) {
             {status === 'error'
               && error?.code !== 'LIMIT_REACHED'
               && error?.code !== 'HOSTED_PERMISSION_REQUIRED'
-              && error?.code !== 'CAPTCHA_REQUIRED' && (
+              && error?.code !== 'CAPTCHA_REQUIRED'
+              // Community card owns the panel body while we're waiting
+              // on the user's pick — don't double-render error cards.
+              && communityStatus !== 'available'
+              && communityStatus !== 'hydrating' && (
               <ErrorState error={error} onRetry={init} ui={ui} />
             )}
 
-            {(status === 'generating' || status === 'ready' || status === 'init') && (
+            {(status === 'generating' || status === 'ready' || status === 'init')
+              && communityStatus !== 'available'
+              && communityStatus !== 'hydrating' && (
               <>
                 {extracted && <ExtractionStats extracted={extracted} ui={ui} />}
                 <LevelTabPill level={current} metaOverride={pillMeta} />
