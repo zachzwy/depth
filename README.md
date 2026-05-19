@@ -59,7 +59,7 @@ npm run build        # production build to ./dist
 
 `manifest.json` ships a `key` field so the extension ID stays constant across reinstalls (`hmgcbgpopbejbinnkfgnbbjecalglebn` for the current key). This matters because Depth Hosted's OAuth flow uses `https://<extension-id>.chromiumapp.org/` as its redirect URL — a drifting ID would mean re-allowlisting on every install.
 
-The matching private key lives at `.keys/depth-extension-dev.pem` (gitignored). Keep it backed up but out of the repo. Keep the `key` field in the manifest when uploading to the Chrome Web Store too — the store derives the extension ID from it, so the same `key` keeps the published extension on the same ID as local dev installs, which means the OAuth redirect allowlist (Supabase, etc.) keeps working without changes.
+The matching private key lives at `.keys/depth-extension-dev.pem` (gitignored). Keep it backed up but out of the repo. The Chrome Web Store does **not** accept manifests that include `key` — uploads with it are rejected. The production build at `vite build` strips `key` from `dist/manifest.json` for that reason; the CWS assigns its own public key on first upload, and the resulting extension ID is permanent. The published ID will therefore differ from the local dev ID `hmgcbgpopbejbinnkfgnbbjecalglebn`, so the Supabase OAuth redirect allowlist needs both `https://hmgcbgpopbejbinnkfgnbbjecalglebn.chromiumapp.org/` (dev) and `https://<cws-id>.chromiumapp.org/` (published) entries.
 
 To rotate (e.g. if the dev key leaks):
 ```bash
