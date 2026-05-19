@@ -18,7 +18,7 @@ export const en = {
   shareDuplicateReadExisting: 'Read existing',
   shareConsentTitle: 'Publish to depth.microfalls.com/community?',
   shareConsentBody:
-    "Your Glance, Summary, and Read views will be public on depth.microfalls.com/community along with the article URL. Anyone can read it, and you can delete it later from Settings. The original article body is never published — only what Depth produced. Publishing is anonymous — readers don't see who shared it.",
+    "Your Glance, Summary, and Read views will be public on depth.microfalls.com/community along with the article URL. Anyone can read it, and you can delete it later from Settings. The original article body is never published — only what Depth produced. Publishing is anonymous — readers don't see who shared it. Pages behind a sign-in, paywalled news articles, and per-account pages can't be published — Depth will tell you if it can't share a particular page.",
   shareConfirm: 'Publish',
   shareAlways: 'Always publish',
   shareSuccess: 'Published — link copied.',
