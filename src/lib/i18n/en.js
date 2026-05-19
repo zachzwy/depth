@@ -19,6 +19,7 @@ export const en = {
   shareSuccess: 'Published — link copied.',
   shareSuccessHint: 'Anyone with the link can read this Depth view.',
   shareCopyAgain: 'Copy link',
+  shareCopiedFeedback: 'Copied ✓',
   shareFailed: 'Share failed.',
   communityAvailableOne: 'A community version of this page is published.',
   communityAvailableMany: (n) => `${n} community versions of this page are published.`,

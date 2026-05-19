@@ -80,6 +80,30 @@ describe('ShareDialog', () => {
     expect(onCopy).toHaveBeenCalledOnce();
   });
 
+  it('Copy link click flashes "Copied" feedback + highlights the url box', () => {
+    const onCopy = vi.fn();
+    const { container } = render(
+      <ShareDialog
+        status="success"
+        consentRequired
+        shareUrl="https://depth.microfalls.com/s/abcdEFGH"
+        onCopy={onCopy}
+        onClose={() => {}}
+        ui={en}
+      />,
+    );
+    const copyBtn = [...container.querySelectorAll('button')].find(
+      (b) => b.textContent === en.shareCopyAgain,
+    );
+    fireEvent.click(copyBtn);
+    // Same button now shows the feedback label, and the URL box gets
+    // the is-just-copied class that drives the CSS pulse animation.
+    expect(copyBtn.textContent).toBe(en.shareCopiedFeedback);
+    expect(copyBtn.classList.contains('is-just-copied')).toBe(true);
+    const urlBox = container.querySelector('.share-dialog__url');
+    expect(urlBox.classList.contains('is-just-copied')).toBe(true);
+  });
+
   it('error mode shows the message and offers Try again', () => {
     const onConfirm = vi.fn();
     const { container } = render(

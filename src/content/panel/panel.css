@@ -1289,6 +1289,34 @@
   cursor: default;
 }
 
+/* Brief feedback flash when the user clicks "Copy link" — the
+ * clipboard write is otherwise invisible. The URL box pulses with the
+ * accent color, and the CTA briefly relabels to "Copied ✓" (handled in
+ * ShareDialog.jsx via local state). */
+
+@keyframes share-copied-pulse {
+  0% {
+    background: rgba(124, 125, 255, 0.32);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(124, 125, 255, 0.18);
+  }
+  100% {
+    background: rgba(0, 0, 0, 0.28);
+    border-color: var(--border);
+    box-shadow: 0 0 0 0 rgba(124, 125, 255, 0);
+  }
+}
+
+.share-dialog__url.is-just-copied {
+  animation: share-copied-pulse 1.4s ease-out;
+}
+
+.share-dialog__actions .state__cta.is-just-copied {
+  background: oklch(0.78 0.12 155); /* var(--ok) tone from the marketing palette */
+  color: #0f1410;
+  transition: background 0.18s ease;
+}
+
 /* ----- community versions banner (phase 7) ----- */
 
 .community-card {
