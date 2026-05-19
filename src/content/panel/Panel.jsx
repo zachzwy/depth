@@ -702,6 +702,9 @@ export default function Panel({ pageMeta, onClose }) {
   async function onRegenerate() {
     disconnectGenerationPorts();
     clearGeneratedState();
+    setCommunityStatus('idle');
+    setCommunityVersions([]);
+    setSelectedCommunitySlug(null);
     setStaleUrl(null);
     await clearSession(pageMeta.url);
     const rawExt = extractPage();
@@ -1329,11 +1332,12 @@ export default function Panel({ pageMeta, onClose }) {
     if (!ok) setCommunityStatus('available');
   }
 
-  function onGenerateFreshFromCommunity() {
+  async function onGenerateFreshFromCommunity() {
     setCommunityStatus('idle');
     setCommunityVersions([]);
     setSelectedCommunitySlug(null);
-    if (extracted) startGeneration(extracted);
+    await clearSession(pageMeta.url);
+    if (extracted) startGeneration(extracted, true);
   }
 
   async function onUnsave() {
