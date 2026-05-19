@@ -246,4 +246,66 @@ describe('depth:extract-document message handler', () => {
       }),
     );
   });
+
+  it('returns extracted Markdown text', async () => {
+    const markdown = `
+      ---
+      title: Markdown Essay
+      ---
+      # Markdown Essay
+
+      Depth can read [Markdown files](https://example.com) as article-heavy text.
+
+      - ${'Markdown bullets and prose are flattened into readable paragraphs. '.repeat(8)}
+
+      \`\`\`js
+      console.log('code blocks are ignored');
+      \`\`\`
+    `;
+    globalThis.fetch.mockResolvedValueOnce(
+      new Response(markdown, { status: 200, headers: { 'content-type': 'text/markdown' } }),
+    );
+
+    await importWorker();
+    const reply = await fireMessage({
+      type: 'depth:extract-document',
+      url: 'https://raw.githubusercontent.com/zachzwy/depth/main/README.md',
+      title: 'README.md',
+    });
+
+    expect(reply.ok).toBe(true);
+    expect(reply.extracted.classification).toEqual({ kind: 'article', sourceType: 'markdown' });
+    expect(reply.extracted.sourceLabel).toBe('Markdown');
+    expect(reply.extracted.text).toContain('Markdown Essay');
+    expect(reply.extracted.text).toContain('Depth can read Markdown files');
+    expect(reply.extracted.text).not.toContain('console.log');
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://raw.githubusercontent.com/zachzwy/depth/main/README.md',
+      expect.objectContaining({
+        credentials: 'include',
+        headers: { accept: 'text/markdown,text/plain,*/*' },
+      }),
+    );
+  });
+
+  it('returns extracted plain text', async () => {
+    globalThis.fetch.mockResolvedValueOnce(
+      new Response(`${'Plain text files can carry long essays without HTML structure. '.repeat(12)}`, {
+        status: 200,
+        headers: { 'content-type': 'text/plain' },
+      }),
+    );
+
+    await importWorker();
+    const reply = await fireMessage({
+      type: 'depth:extract-document',
+      url: 'https://example.com/essay.txt',
+      title: 'essay.txt',
+    });
+
+    expect(reply.ok).toBe(true);
+    expect(reply.extracted.classification).toEqual({ kind: 'article', sourceType: 'raw-text' });
+    expect(reply.extracted.sourceLabel).toBe('Plain text');
+    expect(reply.extracted.text).toContain('Plain text files can carry long essays');
+  });
 });

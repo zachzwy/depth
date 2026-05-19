@@ -5,8 +5,10 @@ import {
   epubCandidates,
   googleDocTextCandidates,
   isPdfUrl,
+  markdownCandidates,
   parseArxivId,
   parseGoogleDoc,
+  textCandidates,
   wordDocxCandidates,
 } from '../../src/lib/document-sources.js';
 
@@ -92,5 +94,40 @@ describe('document source URL helpers', () => {
       sourceType: 'epub',
       label: 'EPUB',
     });
+  });
+
+  it('detects direct Markdown and plain text URLs', () => {
+    const mdUrl = 'https://example.com/essay.md?raw=1';
+    expect(documentSourceFromUrl(mdUrl)).toEqual({
+      kind: 'document',
+      sourceType: 'markdown',
+      label: 'Markdown',
+      url: mdUrl,
+    });
+    expect(markdownCandidates(mdUrl)).toEqual([{ url: mdUrl, label: 'Markdown' }]);
+
+    const txtUrl = 'https://example.com/essay.txt';
+    expect(documentSourceFromUrl(txtUrl)).toEqual({
+      kind: 'document',
+      sourceType: 'raw-text',
+      label: 'Plain text',
+      url: txtUrl,
+    });
+    expect(textCandidates(txtUrl)).toEqual([{ url: txtUrl, label: 'Plain text' }]);
+  });
+
+  it('converts GitHub Markdown and text blob pages to raw URLs', () => {
+    expect(markdownCandidates('https://github.com/zachzwy/depth/blob/main/README.md')).toEqual([
+      {
+        url: 'https://raw.githubusercontent.com/zachzwy/depth/main/README.md',
+        label: 'Markdown',
+      },
+    ]);
+    expect(textCandidates('https://github.com/zachzwy/depth/blob/main/examples/note.txt')).toEqual([
+      {
+        url: 'https://raw.githubusercontent.com/zachzwy/depth/main/examples/note.txt',
+        label: 'Plain text',
+      },
+    ]);
   });
 });

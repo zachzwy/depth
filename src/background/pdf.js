@@ -6,8 +6,10 @@ import {
   arxivHtmlCandidates,
   epubCandidates,
   googleDocTextCandidates,
+  markdownCandidates,
   parseArxivId,
   parseGoogleDoc,
+  textCandidates,
   wordDocxCandidates,
 } from '../lib/document-sources.js';
 
@@ -17,6 +19,7 @@ const MAX_PDF_BYTES = 20 * 1024 * 1024;
 const MAX_PDF_PAGES = 50;
 const MAX_DOCX_BYTES = 20 * 1024 * 1024;
 const MAX_EPUB_BYTES = 50 * 1024 * 1024;
+const MAX_TEXT_BYTES = 5 * 1024 * 1024;
 
 export async function extractPdfDocument({ url, title, signal } = {}) {
   if (!url) throw new Error('No PDF URL provided');
@@ -35,6 +38,31 @@ export async function extractPdfDocument({ url, title, signal } = {}) {
     return extractEpubDocument({ url, title, signal, candidates: epubSourceCandidates });
   }
 
+  const markdownSourceCandidates = markdownCandidates(url);
+  if (markdownSourceCandidates.length > 0) {
+    return extractTextDocument({
+      url,
+      title,
+      signal,
+      candidates: markdownSourceCandidates,
+      sourceType: 'markdown',
+      label: 'Markdown',
+      transform: markdownToText,
+    });
+  }
+
+  const textSourceCandidates = textCandidates(url);
+  if (textSourceCandidates.length > 0) {
+    return extractTextDocument({
+      url,
+      title,
+      signal,
+      candidates: textSourceCandidates,
+      sourceType: 'raw-text',
+      label: 'Plain text',
+    });
+  }
+
   for (const candidate of arxivHtmlCandidates(url)) {
     try {
       const htmlExtraction = await tryExtractHtml(candidate, { url, title, signal });
@@ -45,6 +73,75 @@ export async function extractPdfDocument({ url, title, signal } = {}) {
   }
 
   return extractPdfText({ url, title, signal });
+}
+
+async function extractTextDocument({ url, title, signal, candidates, sourceType, label, transform }) {
+  let lastError;
+  for (const candidate of candidates) {
+    try {
+      const raw = await fetchPlainText(candidate.url, signal);
+      const text = normalizeDocumentText(transform ? transform(raw) : raw);
+      if (text.length < MIN_TEXT_LENGTH) {
+        throw new Error(`This ${label} file does not expose enough readable text.`);
+      }
+      const capped = capText(text);
+      return {
+        title: titleFromUrl(url, title, label),
+        byline: null,
+        siteName: null,
+        text: capped.text,
+        wordCount: countWords(capped.text),
+        truncated: capped.truncated,
+        sourceUrl: candidate.url,
+        sourceLabel: candidate.label,
+        classification: { kind: 'article', sourceType },
+      };
+    } catch (err) {
+      lastError = err;
+      console.warn('[Depth Text] candidate failed:', candidate.url, err?.message);
+    }
+  }
+  throw lastError ?? new Error(`This ${label} file is not supported yet.`);
+}
+
+async function fetchPlainText(url, signal) {
+  const res = await fetch(url, {
+    signal,
+    credentials: 'include',
+    headers: { accept: 'text/markdown,text/plain,*/*' },
+  });
+  if (!res.ok) {
+    throw new Error(`Text fetch failed (${res.status})`);
+  }
+
+  const len = Number(res.headers.get('content-length') || 0);
+  if (len > MAX_TEXT_BYTES) {
+    throw new Error('Text file is too large for this version of Depth');
+  }
+
+  const text = await res.text();
+  if (new TextEncoder().encode(text).byteLength > MAX_TEXT_BYTES) {
+    throw new Error('Text file is too large for this version of Depth');
+  }
+  return text;
+}
+
+function markdownToText(markdown) {
+  return decodeHtml(
+    markdown
+      .replace(/\r\n?/g, '\n')
+      .replace(/^---\s*\n[\s\S]*?\n---\s*(?=\n)/, '')
+      .replace(/```[\s\S]*?```/g, ' ')
+      .replace(/~~~[\s\S]*?~~~/g, ' ')
+      .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/^\s{0,3}#{1,6}\s+/gm, '')
+      .replace(/^\s{0,3}>\s?/gm, '')
+      .replace(/^\s*[-*+]\s+/gm, '')
+      .replace(/^\s*\d+[.)]\s+/gm, '')
+      .replace(/[*_~`]+/g, '')
+      .replace(/<[^>]+>/g, ' '),
+  );
 }
 
 async function extractEpubDocument({ url, title, signal, candidates }) {

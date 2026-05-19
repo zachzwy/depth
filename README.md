@@ -16,6 +16,24 @@ MVP ships levels 1–5.
 
 Depth's MVP is article-first: it is designed for individual articles, essays, and long-form documentation pages. Feed pages, comment threads, dashboards, and app shells should not auto-generate by default, even if they contain text. The panel may offer "Try anyway" as an explicit user override, but automatic extraction should stay tuned for article-shaped reading surfaces.
 
+## Supported reading surfaces
+
+Depth currently supports these article-heavy formats:
+
+- **HTML articles and essays**: Readability plus fallback extraction for long-form pages, docs pages, and older static essays.
+- **Text PDFs**: direct PDF URLs and arXiv PDFs, with arXiv HTML attempted before PDF text extraction.
+- **Google Docs**: `docs.google.com/document/...` plain-text export, including Google export redirects.
+- **Word documents**: direct/downloadable `.docx` files and Office viewer URLs that contain a `.docx` source URL.
+- **EPUB**: direct EPUB URLs, Gutenberg-style EPUB filenames, and known ebook pages that link to EPUB files.
+- **Markdown and plain text**: direct `.md`, `.markdown`, `.txt`, and `.text` files, plus GitHub blob pages for those file types.
+
+Known gaps and good future candidates:
+
+- **OCR PDFs**: scanned/image-only PDFs need OCR before Depth can read them.
+- **Google Slides / PowerPoint**: should use deck-aware extraction and prompting rather than article extraction.
+- **Audio and video**: need transcript extraction or speech-to-text.
+- **Private Microsoft Word Online / SharePoint viewer pages**: direct `.docx` links work; full viewer/export auth needs a deeper integration.
+
 ## Development
 
 ```bash

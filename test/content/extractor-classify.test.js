@@ -146,6 +146,38 @@ describe('extractPage fallback containers', () => {
     expect(extracted.text).toBe('');
   });
 
+  it('marks GitHub Markdown blob pages for raw background extraction', () => {
+    vi.stubGlobal('location', { href: 'https://github.com/zachzwy/depth/blob/main/README.md' });
+    document.title = 'README.md';
+    document.body.innerHTML = '<main><h1>README.md</h1></main>';
+
+    const extracted = extractPage();
+
+    expect(extracted.classification).toEqual({
+      kind: 'document',
+      sourceType: 'markdown',
+      reason: 'needs-background-extraction',
+    });
+    expect(extracted.sourceUrl).toBe('https://raw.githubusercontent.com/zachzwy/depth/main/README.md');
+    expect(extracted.text).toBe('');
+  });
+
+  it('marks direct plain text URLs for background extraction', () => {
+    vi.stubGlobal('location', { href: 'https://example.com/notes/essay.txt' });
+    document.title = 'essay.txt';
+    document.body.innerHTML = '<pre>Plain essay text</pre>';
+
+    const extracted = extractPage();
+
+    expect(extracted.classification).toEqual({
+      kind: 'document',
+      sourceType: 'raw-text',
+      reason: 'needs-background-extraction',
+    });
+    expect(extracted.sourceUrl).toBe('https://example.com/notes/essay.txt');
+    expect(extracted.text).toBe('');
+  });
+
   it('extracts Mintlify-style docs content without semantic article wrappers', () => {
     history.pushState(null, '', '/oss/python/langchain/multi-agent/index');
     document.title = 'Multi-agent - Docs by LangChain';

@@ -42,6 +42,26 @@ export function documentSourceFromUrl(url) {
     };
   }
 
+  const markdownCandidate = markdownCandidates(url)[0];
+  if (markdownCandidate) {
+    return {
+      kind: 'document',
+      sourceType: 'markdown',
+      label: 'Markdown',
+      url: markdownCandidate.url,
+    };
+  }
+
+  const textCandidate = textCandidates(url)[0];
+  if (textCandidate) {
+    return {
+      kind: 'document',
+      sourceType: 'raw-text',
+      label: 'Plain text',
+      url: textCandidate.url,
+    };
+  }
+
   return null;
 }
 
@@ -153,8 +173,51 @@ export function epubCandidates(url) {
   return [{ url: parsed.href, label: 'EPUB' }];
 }
 
+export function markdownCandidates(url) {
+  return textLikeCandidates(url, MARKDOWN_PATH_RE, 'Markdown');
+}
+
+export function textCandidates(url) {
+  return textLikeCandidates(url, TEXT_PATH_RE, 'Plain text');
+}
+
 function looksLikeEpubPath(pathname) {
   return /\.epub(?:3)?(?:[._-](?:images|noimages))?$/i.test(pathname);
+}
+
+const MARKDOWN_PATH_RE = /\.(?:md|markdown|mdown|mkd)$/i;
+const TEXT_PATH_RE = /\.(?:txt|text)$/i;
+
+function textLikeCandidates(url, pathPattern, label) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return [];
+  }
+
+  const direct = pathPattern.test(parsed.pathname)
+    ? [{ url: parsed.href, label }]
+    : [];
+  const githubRaw = githubBlobRawUrl(parsed, pathPattern);
+  if (githubRaw) return [{ url: githubRaw, label }];
+  return dedupeCandidates(direct);
+}
+
+function githubBlobRawUrl(parsed, pathPattern) {
+  const host = parsed.hostname.toLowerCase();
+  if (host !== 'github.com' && host !== 'www.github.com') return null;
+
+  const parts = parsed.pathname.split('/').filter(Boolean);
+  const blobIndex = parts.indexOf('blob');
+  if (parts.length < 5 || blobIndex !== 2) return null;
+
+  const owner = parts[0];
+  const repo = parts[1];
+  const ref = parts[3];
+  const filePath = parts.slice(4).join('/');
+  if (!pathPattern.test(filePath)) return null;
+  return `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${filePath}`;
 }
 
 function looksLikeDocxUrl(value) {
