@@ -27,6 +27,7 @@ Depth currently supports these article-heavy formats:
 - **EPUB**: direct EPUB URLs, Gutenberg-style EPUB filenames, and known ebook pages that link to EPUB files.
 - **Markdown and plain text**: direct `.md`, `.markdown`, `.txt`, and `.text` files, plus GitHub blob pages for those file types.
 - **Jupyter notebooks**: direct `.ipynb` files and GitHub blob pages, extracting Markdown and raw cells as reading text.
+- **LaTeX source**: direct `.tex` files and GitHub blob pages, with common paper/article markup flattened into prose.
 
 Known gaps and good future candidates:
 

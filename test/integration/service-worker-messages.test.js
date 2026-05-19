@@ -360,4 +360,44 @@ describe('depth:extract-document message handler', () => {
     expect(reply.extracted.text).toContain('explanatory Markdown cells');
     expect(reply.extracted.text).not.toContain('implementation detail');
   });
+
+  it('returns extracted LaTeX prose', async () => {
+    const latex = String.raw`
+      \title{Scaling Laws for Readable Systems}
+      \author{Depth Team}
+      \begin{abstract}
+      This paper argues that article-heavy LaTeX source can be read as prose when structural commands are removed.
+      The central thesis is that extraction should preserve explanatory claims while discarding citations and equations.
+      \end{abstract}
+      \section{Introduction}
+      ${'LaTeX files often contain long-form scientific arguments where the surrounding markup is secondary to the prose. '.repeat(10)}
+      \cite{example2026}
+      \begin{equation}
+      y = mx + b
+      \end{equation}
+      \section{Conclusion}
+      ${'A lightweight converter can expose enough source text for Depth to summarize the document. '.repeat(8)}
+    `;
+    globalThis.fetch.mockResolvedValueOnce(
+      new Response(latex, {
+        status: 200,
+        headers: { 'content-type': 'text/x-tex' },
+      }),
+    );
+
+    await importWorker();
+    const reply = await fireMessage({
+      type: 'depth:extract-document',
+      url: 'https://raw.githubusercontent.com/example/paper/main/main.tex',
+      title: 'main.tex',
+    });
+
+    expect(reply.ok).toBe(true);
+    expect(reply.extracted.classification).toEqual({ kind: 'article', sourceType: 'latex' });
+    expect(reply.extracted.sourceLabel).toBe('LaTeX');
+    expect(reply.extracted.text).toContain('Scaling Laws for Readable Systems');
+    expect(reply.extracted.text).toContain('article-heavy LaTeX source can be read as prose');
+    expect(reply.extracted.text).not.toContain('example2026');
+    expect(reply.extracted.text).not.toContain('y = mx + b');
+  });
 });

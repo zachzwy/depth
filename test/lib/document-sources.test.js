@@ -5,6 +5,7 @@ import {
   epubCandidates,
   googleDocTextCandidates,
   isPdfUrl,
+  latexCandidates,
   markdownCandidates,
   notebookCandidates,
   parseArxivId,
@@ -144,6 +145,22 @@ describe('document source URL helpers', () => {
       {
         url: 'https://raw.githubusercontent.com/jakevdp/PythonDataScienceHandbook/master/notebooks/01.00-IPython-Beyond-Normal-Python.ipynb',
         label: 'Jupyter notebook',
+      },
+    ]);
+  });
+
+  it('detects direct and GitHub LaTeX source URLs', () => {
+    const direct = 'https://example.com/papers/main.tex';
+    expect(documentSourceFromUrl(direct)).toEqual({
+      kind: 'document',
+      sourceType: 'latex',
+      label: 'LaTeX',
+      url: direct,
+    });
+    expect(latexCandidates('https://github.com/example/paper/blob/main/main.tex')).toEqual([
+      {
+        url: 'https://raw.githubusercontent.com/example/paper/main/main.tex',
+        label: 'LaTeX',
       },
     ]);
   });

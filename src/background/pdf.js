@@ -6,6 +6,7 @@ import {
   arxivHtmlCandidates,
   epubCandidates,
   googleDocTextCandidates,
+  latexCandidates,
   markdownCandidates,
   notebookCandidates,
   parseArxivId,
@@ -67,6 +68,19 @@ export async function extractPdfDocument({ url, title, signal } = {}) {
   const notebookSourceCandidates = notebookCandidates(url);
   if (notebookSourceCandidates.length > 0) {
     return extractNotebookDocument({ url, title, signal, candidates: notebookSourceCandidates });
+  }
+
+  const latexSourceCandidates = latexCandidates(url);
+  if (latexSourceCandidates.length > 0) {
+    return extractTextDocument({
+      url,
+      title,
+      signal,
+      candidates: latexSourceCandidates,
+      sourceType: 'latex',
+      label: 'LaTeX',
+      transform: latexToText,
+    });
   }
 
   for (const candidate of arxivHtmlCandidates(url)) {
@@ -131,6 +145,32 @@ function notebookToText(raw) {
   }
 
   return parts.filter(Boolean).join('\n\n');
+}
+
+function latexToText(latex) {
+  return decodeHtml(
+    latex
+      .replace(/\r\n?/g, '\n')
+      .replace(/(^|[^\\])%.*$/gm, '$1')
+      .replace(/\\begin\{(?:abstract|quote|quotation)\}/g, '\n')
+      .replace(/\\end\{(?:abstract|quote|quotation)\}/g, '\n')
+      .replace(/\\(section|subsection|subsubsection|paragraph|subparagraph)\*?\{([^{}]*)\}/g, '\n$2\n')
+      .replace(/\\(title|author|date)\{([^{}]*)\}/g, '\n$2\n')
+      .replace(/\\caption\{([^{}]*)\}/g, '\n$1\n')
+      .replace(/\\(?:emph|textbf|textit|texttt|textsc|underline)\{([^{}]*)\}/g, '$1')
+      .replace(/\\href\{[^{}]*\}\{([^{}]*)\}/g, '$1')
+      .replace(/\\url\{([^{}]*)\}/g, '$1')
+      .replace(/\\(?:cite|citep|citet|ref|eqref|label)\*?(?:\[[^\]]*\])?\{[^{}]*\}/g, ' ')
+      .replace(/\\begin\{(?:figure|table|equation|align\*?|displaymath|tikzpicture|lstlisting|verbatim)\}[\s\S]*?\\end\{(?:figure|table|equation|align\*?|displaymath|tikzpicture|lstlisting|verbatim)\}/g, ' ')
+      .replace(/\$\$[\s\S]*?\$\$/g, ' ')
+      .replace(/\$[^$\n]+\$/g, ' ')
+      .replace(/\\\[[\s\S]*?\\\]/g, ' ')
+      .replace(/\\\([\s\S]*?\\\)/g, ' ')
+      .replace(/\\item\b/g, '\n')
+      .replace(/\\[a-zA-Z]+\*?(?:\[[^\]]*\])?(?:\{[^{}]*\})?/g, ' ')
+      .replace(/[{}]/g, ' ')
+      .replace(/~+/g, ' '),
+  );
 }
 
 async function extractTextDocument({ url, title, signal, candidates, sourceType, label, transform }) {

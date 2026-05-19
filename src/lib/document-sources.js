@@ -72,6 +72,16 @@ export function documentSourceFromUrl(url) {
     };
   }
 
+  const latexCandidate = latexCandidates(url)[0];
+  if (latexCandidate) {
+    return {
+      kind: 'document',
+      sourceType: 'latex',
+      label: 'LaTeX',
+      url: latexCandidate.url,
+    };
+  }
+
   return null;
 }
 
@@ -195,6 +205,10 @@ export function notebookCandidates(url) {
   return textLikeCandidates(url, NOTEBOOK_PATH_RE, 'Jupyter notebook');
 }
 
+export function latexCandidates(url) {
+  return textLikeCandidates(url, LATEX_PATH_RE, 'LaTeX');
+}
+
 function looksLikeEpubPath(pathname) {
   return /\.epub(?:3)?(?:[._-](?:images|noimages))?$/i.test(pathname);
 }
@@ -202,6 +216,7 @@ function looksLikeEpubPath(pathname) {
 const MARKDOWN_PATH_RE = /\.(?:md|markdown|mdown|mkd)$/i;
 const TEXT_PATH_RE = /\.(?:txt|text)$/i;
 const NOTEBOOK_PATH_RE = /\.ipynb$/i;
+const LATEX_PATH_RE = /\.tex$/i;
 
 function textLikeCandidates(url, pathPattern, label) {
   let parsed;

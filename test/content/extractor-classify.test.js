@@ -198,6 +198,24 @@ describe('extractPage fallback containers', () => {
     expect(extracted.text).toBe('');
   });
 
+  it('marks GitHub LaTeX blob pages for raw background extraction', () => {
+    vi.stubGlobal('location', {
+      href: 'https://github.com/example/paper/blob/main/main.tex',
+    });
+    document.title = 'main.tex';
+    document.body.innerHTML = '<main><h1>main.tex</h1></main>';
+
+    const extracted = extractPage();
+
+    expect(extracted.classification).toEqual({
+      kind: 'document',
+      sourceType: 'latex',
+      reason: 'needs-background-extraction',
+    });
+    expect(extracted.sourceUrl).toBe('https://raw.githubusercontent.com/example/paper/main/main.tex');
+    expect(extracted.text).toBe('');
+  });
+
   it('extracts Mintlify-style docs content without semantic article wrappers', () => {
     history.pushState(null, '', '/oss/python/langchain/multi-agent/index');
     document.title = 'Multi-agent - Docs by LangChain';
