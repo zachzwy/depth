@@ -1,6 +1,6 @@
 import { getLanguage } from './i18n/index.js';
 
-export const PROMPT_VERSION = 'v2';
+export const PROMPT_VERSION = 'v3';
 
 function languageInstruction(language) {
   const { promptName, scriptNote } = getLanguage(language);
@@ -41,7 +41,9 @@ Rules:
 - Evidence: must be an exact substring of the article. If you cannot find one, downgrade confidence to "low" and put an empty string.
 - Forbidden filler: "This article discusses…", "In conclusion…", "The author argues that…". Be direct.
 - Summary: exactly 5 bullets. Each is one sentence. Each is a load-bearing claim, not a recap of structure.
-- Read: 2–4 sections. Each section has a short heading and 1–3 short paragraphs. Preserve the article's logical flow.
+- Read: 2–4 sections. Each section has a short heading and 1–3 short paragraphs. Reorganize the material thematically by the underlying ideas — do NOT follow the article's section order or paragraph structure.
+- Read length budget: total prose across all read.sections.paragraphs must stay at or below ~250 words combined. Compress aggressively; this is a synthesis, not a retelling.
+- Do not paraphrase any sentence closely. Restate ideas at a higher level of abstraction, in your own words. If a phrasing in the article is distinctive, name the idea rather than reproducing the phrasing.
 - Avoid trivia. Favor synthesis and understanding over recall of specific names, numbers, or dates unless those are central.`;
 
 export function buildUserMessage1_3({ title, url, text, preferredLanguage }) {
