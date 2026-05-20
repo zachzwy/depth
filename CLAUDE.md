@@ -20,7 +20,7 @@ After source edits, run `npm run build` — it's the only automated correctness 
 
 Depth is a Manifest V3 Chrome extension that injects a Preact panel into any web page. It has three runtime contexts that communicate via `chrome.runtime` ports/messages, and they must not be conflated:
 
-- **Content script** (`src/content/content-script.js`) — injected per-tab. Mounts the panel into a closed Shadow DOM under a `#depth-host` element pinned to `documentElement` with `all: initial` to prevent host-page CSS leakage. Polls `location.href` on a 1s interval so SPA navigations re-render the panel.
+- **Content script** (`src/content/content-script.js`) — injected per-tab. Mounts the panel into a closed Shadow DOM under a `#depth-host` element pinned to `documentElement` with `all: initial` to prevent host-page CSS leakage. Polls `location.href` on a 1s interval so SPA navigations re-render the panel. Page text comes from `src/content/extractor.js` (`@mozilla/readability` + `readability-stats.js`); when the URL is a non-HTML document (PDF, EPUB, DOCX, arXiv, Google Doc, YouTube transcript, markdown/LaTeX/RST/notebook — see `src/lib/document-sources.js`), extraction is delegated to the service worker's `pdf.js`/`docx.js`/`epub.js`/`zip.js`.
 - **Service worker** (`src/background/service-worker.js`) — owns all model API traffic, caching, and routing. Listens on three named `chrome.runtime.onConnect` ports: `depth-generate` (levels 1–3, combined call), `depth-quiz` (level 4), `depth-dive` (level 5, multi-turn, not cached).
 - **Options page** (`src/options/`) — standalone HTML page for provider/API key/model/language config and per-provider host-permission grants.
 
@@ -55,7 +55,18 @@ When changing prompt wording or output schema, bump `PROMPT_VERSION` in `prompts
 2. Add its host pattern to `optional_host_permissions` in `manifest.json` (the service worker calls `chrome.permissions.contains` before each request and surfaces "Permission for &lt;host&gt; not granted" if missing).
 3. Wire the options page to request the permission when the user picks it.
 
-All providers must speak OpenAI-compatible chat completions (`apiFormat: 'openai-compatible'`); `streamMessage` throws otherwise.
+All BYOK providers must speak OpenAI-compatible chat completions (`apiFormat: 'openai-compatible'`); `streamMessage` throws otherwise. The managed backend (see "Depth Hosted" below) uses a separate wire format and bypasses this registry.
+
+### Depth Hosted (managed backend)
+
+Alongside BYOK providers, the extension can talk to a managed backend (separate repo `depth-api`). These modules are intentionally kept out of `api.js` so the OpenAI-compatible path stays BYOK-only:
+
+- `src/background/hosted-client.js` — SSE generate/quiz/dive against `depth-api`, using named event frames (`started`/`partial`/`done`/`error`), not OpenAI-compatible chat completions.
+- `src/background/hosted-auth.js` — Supabase Auth sessions; `ensureHostedSession` lazily mints an anonymous session and refreshes tokens; `signInWithGoogle` via `chrome.identity.launchWebAuthFlow`.
+- `src/background/hosted-community.js` / `hosted-share.js` — read/publish community summaries (public read, authed write).
+- `src/background/billing.js` — opens Stripe Checkout / billing-portal URLs returned by `depth-api` Edge Functions.
+
+UI for this path: `PaywallCard`, `TrialOfferModal`, `CaptchaCard`, `CommunityVersionsCard`, `ShareDialog`, `HostedPermissionCard`.
 
 ### Consent gate
 
