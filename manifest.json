@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Depth",
   "short_name": "Depth",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Read any page at the depth you choose.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4zTHjTaiIUE1HdmS7jjSjBIe3VrBMyJUzuLRrR6qdNCrNRh8iJ/w2knVEppaKQBzpC17bErYtpIED5/52gp3eICdqlzHuIErZp7pKI31aTJ5dABjCbwnwz/+V757dcQsG5z8MplAD4Fe5K4NDBliQeupHwseH7i0yI0Sq0+RbRLX968Mg82QgWTFQ561huokRjyU+upr4slOd0KYqUOPtohdppo6NpJP+rTJpUeFsUZIKmRYjt2Ov/v8Jb2DP+97RAZN2s+ObNj6WLm+FF7QDl9z7feDDBLtklMGfZ6V8mrEgPG7t/xwOge/GGJxX3UKwoILL5eo7MN0bacELWCUjQIDAQAB",
   "permissions": ["activeTab", "storage", "scripting", "identity"],
