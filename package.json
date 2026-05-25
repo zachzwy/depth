@@ -12,9 +12,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@depth/document-extractor": "*",
+    "@depth/document-sources": "*",
     "@mozilla/readability": "^0.6.0",
     "partial-json": "^0.1.7",
-    "pdfjs-dist": "^5.6.205",
     "preact": "^10.22.0"
   },
   "devDependencies": {

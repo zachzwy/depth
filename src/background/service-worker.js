@@ -12,7 +12,7 @@ import {
   listCommunityVersions,
   fetchCommunitySummaryBySlug,
 } from './hosted-community.js';
-import { extractPdfDocument } from './pdf.js';
+import { extractFromUrl } from '@depth/document-extractor';
 import { publicApiErrorMessage, shuffle, stripJsonWrapper, makeAbort } from './helpers.js';
 import contentScriptPath from '../content/content-script.js?script';
 import { getCached, setCached, clearCached } from './cache.js';
@@ -153,7 +153,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === 'depth:extract-document') {
     (async () => {
       try {
-        const extracted = await extractPdfDocument({
+        const extracted = await extractFromUrl({
           url: msg.url,
           title: msg.title,
         });

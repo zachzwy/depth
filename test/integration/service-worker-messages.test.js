@@ -3,7 +3,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { setSettings } from '../../src/lib/settings.js';
-import { createStoredZip } from '../background/zip-fixtures.js';
+import { createStoredZip } from '@depth/document-extractor/test-fixtures/zip';
 
 async function importWorker() {
   globalThis.chrome._connectListeners.clear();
