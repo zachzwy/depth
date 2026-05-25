@@ -69,7 +69,7 @@ describe('depth:share-summary handler', () => {
     await setupSession();
     globalThis.fetch.mockResolvedValueOnce(
       jsonResponse(
-        { slug: 'abcdEFGH', shareUrl: 'https://depth.microfalls.com/s/abcdEFGH' },
+        { slug: 'abcdEFGH', shareUrl: 'https://depth.productivities.fyi/s/abcdEFGH' },
         { status: 201 },
       ),
     );
@@ -86,7 +86,7 @@ describe('depth:share-summary handler', () => {
     expect(reply).toMatchObject({
       ok: true,
       slug: 'abcdEFGH',
-      shareUrl: 'https://depth.microfalls.com/s/abcdEFGH',
+      shareUrl: 'https://depth.productivities.fyi/s/abcdEFGH',
     });
     const fetched = globalThis.fetch.mock.calls[0];
     expect(fetched[0]).toBe(`${HOSTED}/share-summary`);
@@ -111,7 +111,7 @@ describe('depth:share-summary handler', () => {
     await setupSession();
     globalThis.fetch.mockResolvedValueOnce(
       jsonResponse(
-        { slug: 'zzzz0000', shareUrl: 'https://depth.microfalls.com/s/zzzz0000' },
+        { slug: 'zzzz0000', shareUrl: 'https://depth.productivities.fyi/s/zzzz0000' },
         { status: 201 },
       ),
     );

@@ -86,7 +86,7 @@ describe('CommunityVersionsCard', () => {
     // The "community version" phrase is a real anchor pointing at /community.
     const link = container.querySelector('.community-card__link');
     expect(link).not.toBeNull();
-    expect(link.getAttribute('href')).toBe('https://depth.microfalls.com/community');
+    expect(link.getAttribute('href')).toBe('https://depth.productivities.fyi/community');
     expect(link.getAttribute('target')).toBe('_blank');
     expect(link.getAttribute('rel')).toBe('noopener noreferrer');
     expect(link.textContent).toBe(en.communityHydratedLink);

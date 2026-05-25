@@ -64,14 +64,14 @@ describe('ShareDialog', () => {
       <ShareDialog
         status="success"
         consentRequired
-        shareUrl="https://depth.microfalls.com/s/abcdEFGH"
+        shareUrl="https://depth.productivities.fyi/s/abcdEFGH"
         onCopy={onCopy}
         onClose={() => {}}
         ui={en}
       />,
     );
     expect(container.textContent).toContain(en.shareSuccess);
-    expect(container.textContent).toContain('https://depth.microfalls.com/s/abcdEFGH');
+    expect(container.textContent).toContain('https://depth.productivities.fyi/s/abcdEFGH');
     const copyBtn = [...container.querySelectorAll('button')].find(
       (b) => b.textContent === en.shareCopyAgain,
     );
@@ -86,7 +86,7 @@ describe('ShareDialog', () => {
       <ShareDialog
         status="success"
         consentRequired
-        shareUrl="https://depth.microfalls.com/s/abcdEFGH"
+        shareUrl="https://depth.productivities.fyi/s/abcdEFGH"
         onCopy={onCopy}
         onClose={() => {}}
         ui={en}

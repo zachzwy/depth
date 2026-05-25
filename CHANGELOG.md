@@ -47,6 +47,6 @@ Bring your own API key for any of the following — requests go directly to the 
 
 ### Other
 - Saved deck for keeping cards (key terms, summaries, etc.) across sessions.
-- Optional Community publishing of a single article's Glance / Summary / Read views to `depth.microfalls.com/community`, always opt-in and per-article.
+- Optional Community publishing of a single article's Glance / Summary / Read views to `depth.productivities.fyi/community`, always opt-in and per-article.
 - Interface and generated output in English, Simplified Chinese, Traditional Chinese, Spanish, French, and Japanese.
 - All settings, API keys, and per-article cache stored locally in `chrome.storage`.

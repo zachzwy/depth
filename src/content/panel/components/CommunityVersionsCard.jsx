@@ -78,7 +78,7 @@ export default function CommunityVersionsCard({
           {ui.communityHydratedPrefix}
           <a
             class="community-card__link"
-            href="https://depth.microfalls.com/community"
+            href="https://depth.productivities.fyi/community"
             target="_blank"
             rel="noopener noreferrer"
           >
