@@ -1,5 +1,5 @@
 import { Readability, isProbablyReaderable } from '@mozilla/readability';
-import { documentSourceFromUrl, isYouTubeUrl } from '@depth/document-sources';
+import { documentSourceFromUrl, isYouTubeUrl } from '@productivities/document-sources';
 
 const MIN_TEXT_LENGTH = 200;
 const MIN_FALLBACK_SCORE = 7;

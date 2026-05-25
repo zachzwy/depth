@@ -12,8 +12,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@depth/document-extractor": "*",
-    "@depth/document-sources": "*",
+    "@productivities/document-extractor": "^0.1.0",
+    "@productivities/document-sources": "^0.1.0",
     "@mozilla/readability": "^0.6.0",
     "partial-json": "^0.1.7",
     "preact": "^10.22.0"

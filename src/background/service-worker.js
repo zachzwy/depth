@@ -12,7 +12,7 @@ import {
   listCommunityVersions,
   fetchCommunitySummaryBySlug,
 } from './hosted-community.js';
-import { extractFromUrl } from '@depth/document-extractor';
+import { extractFromUrl } from '@productivities/document-extractor';
 import { publicApiErrorMessage, shuffle, stripJsonWrapper, makeAbort } from './helpers.js';
 import contentScriptPath from '../content/content-script.js?script';
 import { getCached, setCached, clearCached } from './cache.js';
