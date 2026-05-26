@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0 — 2026-05-26
+
+### Changed
+- Marketing site, privacy policy, terms, and community share pages have moved from `depth.microfalls.com` to `depth.productivities.fyi`. The extension's in-app links and consent copy now point at the new domain. No user action is required; existing accounts and saved decks are unaffected.
+- Document extraction (PDF, DOCX, EPUB) is now provided by the published `@productivities/document-extractor` package instead of in-tree parsers. Behavior is unchanged; the in-tree files were removed to shrink the install size.
+
+### Fixed
+- Republished the Privacy Policy with a comprehensive, itemized disclosure of every piece of data the extension handles, where it is stored, why, and which parties (model providers, Supabase, Stripe, Google identity) ever see it. No data flows changed — only the document.
+
 ## 1.0.1 — 2026-05-19
 
 ### Fixed
